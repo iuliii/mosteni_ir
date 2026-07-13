@@ -694,11 +694,8 @@
 // THERMAL LAYER (UNCHANGED)
 // ==========================
 
-const tifURL = "http://127.0.0.1:8080/thermal_qgis_rgb.tif";
-
 const tileURL =
-  "http://127.0.0.1:8000/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url="
-  + encodeURIComponent(tifURL);
+"http://45.77.141.132:8000/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=/data/thermal_qgis_rgb.tif";
 
 const thermalLayer = new ol.layer.Tile({
   source: new ol.source.XYZ({
