@@ -800,7 +800,7 @@ function buildColormap(stops, vmin, vmax, steps = 256) {
   return colormap;
 }
 
-const customColormap = buildColormap(COLOR_STOPS, VMIN, VMAX, 32);
+const customColormap = buildColormap(COLOR_STOPS, VMIN, VMAX);
 const colormapParam = encodeURIComponent(JSON.stringify(customColormap));
 
 // Build the CSS gradient string for the legend bar, reusing the same stops
