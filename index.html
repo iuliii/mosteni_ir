@@ -708,14 +708,14 @@ const thermalLayer = new ol.layer.Tile({
 let brightness = 0;
 let contrast = 100;
 
-thermalLayer.on("postrender", function (evt) {
-  const ctx = evt.context;
-  ctx.save();
-  ctx.globalCompositeOperation = "source-atop";
-  ctx.filter = `brightness(${100 + brightness}%) contrast(${contrast}%)`;
-  ctx.drawImage(ctx.canvas, 0, 0);
-  ctx.restore();
-});
+//thermalLayer.on("postrender", function (evt) {
+  //const ctx = evt.context;
+  //ctx.save();
+  //ctx.globalCompositeOperation = "source-atop";
+  //ctx.filter = `brightness(${100 + brightness}%) contrast(${contrast}%)`;
+  //ctx.drawImage(ctx.canvas, 0, 0);
+  //ctx.restore();
+//});
 
 
 // ==========================
