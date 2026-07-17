@@ -498,6 +498,56 @@
     pointer-events:none;
     box-shadow:0 2px 6px rgba(15,23,42,.25);
   }
+
+  /* ============ TEMPERATURE POPUP ============ */
+  .temp-popup{
+    position:relative;
+    background:var(--ink);
+    color:#fff;
+    padding:6px 12px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    white-space:nowrap;
+    pointer-events:none;
+    box-shadow:0 2px 8px rgba(15,23,42,.3);
+  }
+  .temp-popup.loading{ opacity:0.6; font-weight:500; }
+
+  /* ============ LEGEND ============ */
+  #legend{
+    position:absolute;
+    bottom:20px;
+    left:14px;
+    z-index:1000;
+    background:#fff;
+    border-radius:12px;
+    box-shadow:var(--panel-shadow);
+    padding:10px 12px;
+    display:none;
+    width:220px;
+  }
+  #legend.open{ display:block; }
+  #legend .legend-title{
+    font-size:11px;
+    font-weight:700;
+    color:var(--muted);
+    margin-bottom:6px;
+    display:flex;
+    justify-content:space-between;
+  }
+  #legend .legend-bar{
+    height:14px;
+    border-radius:4px;
+    margin-bottom:4px;
+  }
+  #legend .legend-labels{
+    display:flex;
+    justify-content:space-between;
+    font-size:11px;
+    color:var(--ink);
+    font-weight:600;
+  }
 </style>
 </head>
 
@@ -551,6 +601,11 @@
   <button class="tool-btn" id="tool-ruler" title="Ruler (measure distance)">
     <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l14-14 4 4-14 14z"/><path d="M14 6l2 2"/><path d="M11 9l2 2"/><path d="M8 12l2 2"/><path d="M5 15l2 2"/></svg>
     <span>Ruler</span>
+  </button>
+
+  <button class="tool-btn" id="tool-temperature" title="See temperature (click a point on the map)">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><circle cx="12" cy="18" r="3"/><path d="M9 4a3 3 0 0 1 6 0v9.5a5 5 0 1 1-6 0z"/></svg>
+    <span>Temp</span>
   </button>
 
   <div class="tb-divider"></div>
@@ -633,6 +688,16 @@
   <button id="fullscreenBtn">Toggle fullscreen</button>
 </div>
 
+<!-- ================= LEGEND ================= -->
+<div id="legend">
+  <div class="legend-title"><span>Temperature</span><span>&deg;C</span></div>
+  <div class="legend-bar" id="legendBar"></div>
+  <div class="legend-labels">
+    <span id="legendMin"></span>
+    <span id="legendMax"></span>
+  </div>
+</div>
+
 <!-- ================= FEATURE NAME / DESCRIPTION EDITOR ================= -->
 <div id="editor">
   <button class="editor-close" id="editorClose">&times;</button>
@@ -691,11 +756,66 @@
 <script>
 
 // ==========================
-// THERMAL LAYER (UNCHANGED)
+// CUSTOM COLORMAP (black -> purple -> orange -> yellow)
 // ==========================
 
+// Builds a TiTiler-compatible "explicit" colormap: an object whose keys are
+// "value_start,value_end" strings and whose values are [r,g,b,a] arrays.
+// TiTiler colors each pixel by finding which [start,end) bucket its raw
+// value falls into. We interpolate `steps` buckets evenly across
+// [vmin, vmax], and interpolate the color for each bucket across the given
+// hex color stops (piecewise-linear, like a CSS gradient).
+const VMIN = 22;
+const VMAX = 95;
+const COLOR_STOPS = ["#000000", "#6d1271", "#efa03b", "#fdff00"];
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function buildColormap(stops, vmin, vmax, steps = 256) {
+  const colors = stops.map(hexToRgb);
+  const segments = colors.length - 1;
+  const colormap = {};
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    const value = vmin + t * (vmax - vmin);
+    const nextT = i === steps - 1 ? 1 : (i + 1) / (steps - 1);
+    const nextValue = i === steps - 1 ? vmax + 0.01 : vmin + nextT * (vmax - vmin);
+
+    const segT = t * segments;
+    const segIndex = Math.min(Math.floor(segT), segments - 1);
+    const localT = segT - segIndex;
+    const c0 = colors[segIndex];
+    const c1 = colors[segIndex + 1];
+    const r = Math.round(lerp(c0[0], c1[0], localT));
+    const g = Math.round(lerp(c0[1], c1[1], localT));
+    const b = Math.round(lerp(c0[2], c1[2], localT));
+
+    colormap[`${value.toFixed(4)},${nextValue.toFixed(4)}`] = [r, g, b, 255];
+  }
+  return colormap;
+}
+
+const customColormap = buildColormap(COLOR_STOPS, VMIN, VMAX);
+const colormapParam = encodeURIComponent(JSON.stringify(customColormap));
+
+// Build the CSS gradient string for the legend bar, reusing the same stops
+const legendGradientCss = `linear-gradient(to right, ${COLOR_STOPS.join(", ")})`;
+
+
+// ==========================
+// THERMAL LAYER
+// ==========================
+
+const COG_URL = "/data/thermal_qgis_rgb.tif";
+const TITILER_BASE = "https://tiles.helioscan.ro";
+
 const tileURL =
-"https://tiles.helioscan.ro/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=/data/thermal_qgis_rgb.tif&rescale=22,95&colormap_name=inferno";
+  `${TITILER_BASE}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(COG_URL)}&rescale=${VMIN},${VMAX}&colormap=${colormapParam}`;
 
 const thermalLayer = new ol.layer.Tile({
   source: new ol.source.XYZ({
@@ -940,11 +1060,6 @@ document.getElementById("detectRowBtn").onclick = function () {
   if (!activeFeature) return;
   const coord = activeFeature.getGeometry().getCoordinates();
 
-  // For Row lines (roughly horizontal) we compare the line's Y at the point's X.
-  // For Column lines (roughly vertical) we compare the line's X at the point's Y.
-  // This is more reliable than raw nearest-point distance when guide lines
-  // aren't perfectly parallel, since it asks "which band does this point fall
-  // into" rather than "which line is closest in a straight line".
   function lineOffset(line, axis) {
     const coords = line.getGeometry().getCoordinates();
     const [x1, y1] = coords[0];
@@ -1024,10 +1139,6 @@ document.getElementById("deleteEditorBtn").onclick = () => {
 // PERPENDICULAR ROW/COLUMN CREATION
 // ==========================
 
-// Clicking "Add Column" (or "Add Row") arms placement mode: the next click
-// anywhere near the source row/column snaps to the closest point on that
-// line and drops a perpendicular tick there. Size is double the old fixed
-// default (56px on screen instead of 28px), scaled to current zoom.
 const PERP_LENGTH_PX = 56;
 
 function perpLengthMapUnits() {
@@ -1035,7 +1146,7 @@ function perpLengthMapUnits() {
   return resolution * PERP_LENGTH_PX;
 }
 
-let pendingPerpendicular = null; // { feature, newShape }
+let pendingPerpendicular = null;
 
 function showPlacementHint(text) {
   const el = document.getElementById("placementHint");
@@ -1067,30 +1178,36 @@ function cancelAddPerpendicular() {
 }
 
 map.on("click", (evt) => {
-  if (!pendingPerpendicular) return;
-  const { feature, newShape } = pendingPerpendicular;
-  const shape = feature.get("shape");
+  if (pendingPerpendicular) {
+    const { feature, newShape } = pendingPerpendicular;
+    const shape = feature.get("shape");
 
-  const closest = feature.getGeometry().getClosestPoint(evt.coordinate);
-  const half = perpLengthMapUnits() / 2;
+    const closest = feature.getGeometry().getClosestPoint(evt.coordinate);
+    const half = perpLengthMapUnits() / 2;
 
-  const newCoords = shape === "Row"
-    ? [[closest[0], closest[1] - half], [closest[0], closest[1] + half]]   // vertical column tick
-    : [[closest[0] - half, closest[1]], [closest[0] + half, closest[1]]];  // horizontal row tick
+    const newCoords = shape === "Row"
+      ? [[closest[0], closest[1] - half], [closest[0], closest[1] + half]]
+      : [[closest[0] - half, closest[1]], [closest[0] + half, closest[1]]];
 
-  const newFeature = new ol.Feature({ geometry: new ol.geom.LineString(newCoords) });
-  newFeature.set("color", feature.get("color") || currentColor);
-  newFeature.set("shape", newShape);
-  newFeature.set("name", newShape + " " + nextAnnotationNumber(newShape, newShape));
-  newFeature.set("description", []);
-  vectorSource.addFeature(newFeature);
+    const newFeature = new ol.Feature({ geometry: new ol.geom.LineString(newCoords) });
+    newFeature.set("color", feature.get("color") || currentColor);
+    newFeature.set("shape", newShape);
+    newFeature.set("name", newShape + " " + nextAnnotationNumber(newShape, newShape));
+    newFeature.set("description", []);
+    vectorSource.addFeature(newFeature);
 
-  pendingPerpendicular = null;
-  map.getTargetElement().style.cursor = "";
-  hidePlacementHint();
+    pendingPerpendicular = null;
+    map.getTargetElement().style.cursor = "";
+    hidePlacementHint();
 
-  activateSelect(document.getElementById("tool-select"));
-  openEditor(newFeature);
+    activateSelect(document.getElementById("tool-select"));
+    openEditor(newFeature);
+    return;
+  }
+
+  if (temperatureModeActive) {
+    handleTemperatureClick(evt.coordinate);
+  }
 });
 
 document.addEventListener("keydown", (e) => {
@@ -1112,21 +1229,6 @@ document.getElementById("addPerpendicularBtn").onclick = () => {
 // BULK REPEAT (draw one row/column, auto-generate the rest — straight or oblique)
 // ==========================
 
-// Each generated copy is offset from the original by (i * rightM) meters to
-// the right and (i * downM) meters down, where i is the copy index (1, 2, 3...).
-// Using both a down and a right value at once produces a diagonal ("oblique")
-// cascade instead of a strictly straight row/column repeat — e.g. down 3m +
-// right 1m per step walks the new lines down-and-to-the-right on each pass.
-// In EPSG:3857 map units, +X is right and +Y is up, so "down" is -Y.
-//
-// IMPORTANT: EPSG:3857 (Web Mercator) is NOT a 1-map-unit-per-meter
-// projection except exactly at the equator — it stretches distances by a
-// factor of 1/cos(latitude) as you move away from it. Without correcting
-// for that, a "9.7 m" offset entered here would land noticeably short (or
-// long) of an actual 9.7 m on the ground, and wouldn't match what the
-// ruler tool measures (the ruler already does this conversion correctly
-// via ol.sphere.getLength). metersToMapUnitsAt() applies the same
-// correction so typed meters and measured meters agree.
 function metersToMapUnitsAt(coordinate, meters) {
   const lonLat = ol.proj.toLonLat(coordinate);
   const latRad = (lonLat[1] * Math.PI) / 180;
@@ -1200,7 +1302,7 @@ document.getElementById("repeatGenerateBtn").onclick = function () {
 let measureDraw = null;
 let measureTooltipEl = null;
 let measureTooltipOverlay = null;
-let measureTooltips = []; // all finalized (and the current live) tooltip overlays
+let measureTooltips = [];
 
 function formatLength(geometry) {
   const length = ol.sphere.getLength(geometry);
@@ -1235,8 +1337,6 @@ function activateRuler(btn) {
   });
 
   measureDraw.on("drawstart", (evt) => {
-    // Ruler is a scratch tool, not a saved annotation — only ever show the
-    // measurement currently being taken, so old ones don't pile up on the map.
     measureSource.getFeatures().forEach((f) => {
       if (f !== evt.feature) measureSource.removeFeature(f);
     });
@@ -1257,7 +1357,6 @@ function activateRuler(btn) {
   measureDraw.on("drawend", (evt) => {
     const finishedEl = measureTooltipEl;
     finishedEl.textContent = formatLength(evt.feature.getGeometry());
-    // start a fresh tooltip so the next measurement gets its own label
     createMeasureTooltip();
   });
 
@@ -1278,6 +1377,92 @@ document.getElementById("tool-ruler").onclick = (e) => activateRuler(e.currentTa
 
 
 // ==========================
+// TEMPERATURE PICKER ("See temperature" tool)
+// ==========================
+
+// Clicking the Temp button arms "temperature mode": the next click(s) on
+// the map query the raw pixel value at that lon/lat via TiTiler's /cog/point
+// endpoint and show it in a small popup. Stays active until another tool
+// is picked, so you can click multiple spots in a row.
+let temperatureModeActive = false;
+let tempPopupEl = null;
+let tempPopupOverlay = null;
+
+function createTempPopup() {
+  tempPopupEl = document.createElement("div");
+  tempPopupEl.className = "temp-popup";
+  tempPopupOverlay = new ol.Overlay({
+    element: tempPopupEl,
+    offset: [0, -14],
+    positioning: "bottom-center",
+    stopEvent: false
+  });
+  map.addOverlay(tempPopupOverlay);
+}
+
+async function handleTemperatureClick(coordinate) {
+  const lonLat = ol.proj.toLonLat(coordinate);
+  const [lon, lat] = lonLat;
+
+  if (!tempPopupOverlay) createTempPopup();
+  tempPopupEl.className = "temp-popup loading";
+  tempPopupEl.textContent = "Reading...";
+  tempPopupOverlay.setPosition(coordinate);
+
+  try {
+    const res = await fetch(
+      `${TITILER_BASE}/cog/point/${lon},${lat}?url=${encodeURIComponent(COG_URL)}`
+    );
+    if (!res.ok) throw new Error("point query failed");
+    const data = await res.json();
+    const value = data.values && data.values[0];
+
+    tempPopupEl.className = "temp-popup";
+    if (value === null || value === undefined) {
+      tempPopupEl.textContent = "No data here";
+    } else {
+      tempPopupEl.textContent = `${value.toFixed(1)}°C`;
+    }
+  } catch (err) {
+    tempPopupEl.className = "temp-popup";
+    tempPopupEl.textContent = "Error reading value";
+  }
+}
+
+function activateTemperatureTool(btn) {
+  clearInteractions();
+  closeEditor();
+  temperatureModeActive = true;
+  if (!tempPopupOverlay) createTempPopup();
+  showPlacementHint("Click anywhere on the thermal layer to see the temperature");
+  setActiveButton(btn);
+  document.getElementById("legend").classList.add("open");
+}
+
+function deactivateTemperatureTool() {
+  temperatureModeActive = false;
+  if (tempPopupOverlay) {
+    map.removeOverlay(tempPopupOverlay);
+    tempPopupOverlay = null;
+    tempPopupEl = null;
+  }
+  document.getElementById("legend").classList.remove("open");
+  hidePlacementHint();
+}
+
+document.getElementById("tool-temperature").onclick = (e) => activateTemperatureTool(e.currentTarget);
+
+
+// ==========================
+// LEGEND (matches the custom colormap + real value range)
+// ==========================
+
+document.getElementById("legendBar").style.background = legendGradientCss;
+document.getElementById("legendMin").textContent = VMIN;
+document.getElementById("legendMax").textContent = VMAX;
+
+
+// ==========================
 // TOOLS: select + draw
 // ==========================
 
@@ -1292,12 +1477,7 @@ selectInteraction.on("select", (e) => {
   }
 });
 
-// Lets any drawn feature be reshaped by dragging its vertices (move an
-// endpoint to make a Row/Column bigger, smaller, or repositioned).
 const modifyInteraction = new ol.interaction.Modify({ source: vectorSource });
-
-// Lets any drawn feature be dragged as a whole to move it, without needing
-// to grab a specific vertex.
 const translateInteraction = new ol.interaction.Translate({ layers: [vectorLayer] });
 
 function refreshEditorForFeature(feature) {
@@ -1335,7 +1515,10 @@ function clearInteractions() {
     map.removeInteraction(measureDraw);
     measureDraw = null;
     hidePlacementHint();
-    clearMeasurements(); // ruler is a scratch tool — it shouldn't stick around after you leave it
+    clearMeasurements();
+  }
+  if (temperatureModeActive) {
+    deactivateTemperatureTool();
   }
   map.removeInteraction(selectInteraction);
   map.removeInteraction(modifyInteraction);
@@ -1366,7 +1549,6 @@ function activateDraw(type, btn) {
   drawInteraction.on("drawend", (e) => {
     e.feature.set("color", currentColor);
     e.feature.set("shape", type);
-    // small delay so the feature is committed to the source before opening the editor
     setTimeout(() => openEditor(e.feature), 0);
   });
 
