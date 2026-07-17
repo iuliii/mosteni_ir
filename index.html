@@ -767,7 +767,17 @@
 // hex color stops (piecewise-linear, like a CSS gradient).
 const VMIN = 22;
 const VMAX = 95;
-const COLOR_STOPS = ["#000000", "#6d1271", "#efa03b", "#fdff00"];
+
+// Each stop is [position 0-100, hex color]. Position is a percentage along
+// the VMIN-VMAX range, not necessarily evenly spaced — e.g. 0/15/30/100
+// bunches the black->purple->orange transition into the bottom 30% of the
+// range and stretches orange->yellow across the remaining 70%.
+const COLOR_STOPS = [
+  [0,   "#000000"],
+  [15,  "#6d1271"],
+  [30,  "#efa03b"],
+  [100, "#fdff00"]
+];
 
 function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -776,35 +786,49 @@ function hexToRgb(hex) {
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
-function buildColormap(stops, vmin, vmax, steps = 256) {
-  const colors = stops.map(hexToRgb);
-  const segments = colors.length - 1;
-  const colormap = {};
+// Given a position 0-100, find which pair of stops it falls between and
+// interpolate the color. Positions must be ascending in `stops`.
+function colorAtPosition(stops, pos) {
+  if (pos <= stops[0][0]) return hexToRgb(stops[0][1]);
+  if (pos >= stops[stops.length - 1][0]) return hexToRgb(stops[stops.length - 1][1]);
+  for (let i = 0; i < stops.length - 1; i++) {
+    const p0 = stops[i][0], c0hex = stops[i][1];
+    const p1 = stops[i + 1][0], c1hex = stops[i + 1][1];
+    if (pos >= p0 && pos <= p1) {
+      const t = (pos - p0) / (p1 - p0);
+      const c0 = hexToRgb(c0hex);
+      const c1 = hexToRgb(c1hex);
+      return [
+        Math.round(lerp(c0[0], c1[0], t)),
+        Math.round(lerp(c0[1], c1[1], t)),
+        Math.round(lerp(c0[2], c1[2], t))
+      ];
+    }
+  }
+  return hexToRgb(stops[stops.length - 1][1]);
+}
+
+function buildColormap(stops, vmin, vmax, steps = 32) {
+  const colormap = [];
   for (let i = 0; i < steps; i++) {
-    const t = i / (steps - 1);
-    const value = vmin + t * (vmax - vmin);
-    const nextT = i === steps - 1 ? 1 : (i + 1) / (steps - 1);
-    const nextValue = i === steps - 1 ? vmax + 0.01 : vmin + nextT * (vmax - vmin);
+    const pos = (i / (steps - 1)) * 100;
+    const nextPos = i === steps - 1 ? 100.01 : ((i + 1) / (steps - 1)) * 100;
 
-    const segT = t * segments;
-    const segIndex = Math.min(Math.floor(segT), segments - 1);
-    const localT = segT - segIndex;
-    const c0 = colors[segIndex];
-    const c1 = colors[segIndex + 1];
-    const r = Math.round(lerp(c0[0], c1[0], localT));
-    const g = Math.round(lerp(c0[1], c1[1], localT));
-    const b = Math.round(lerp(c0[2], c1[2], localT));
+    const value = vmin + (pos / 100) * (vmax - vmin);
+    const nextValue = vmin + (nextPos / 100) * (vmax - vmin);
 
-    colormap[`${value.toFixed(4)},${nextValue.toFixed(4)}`] = [r, g, b, 255];
+    const rgb = colorAtPosition(stops, pos);
+    colormap.push([[value, nextValue], [rgb[0], rgb[1], rgb[2], 255]]);
   }
   return colormap;
 }
 
-const customColormap = buildColormap(COLOR_STOPS, VMIN, VMAX);
+const customColormap = buildColormap(COLOR_STOPS, VMIN, VMAX, 32);
 const colormapParam = encodeURIComponent(JSON.stringify(customColormap));
 
 // Build the CSS gradient string for the legend bar, reusing the same stops
-const legendGradientCss = `linear-gradient(to right, ${COLOR_STOPS.join(", ")})`;
+// (CSS gradients want "color position%", e.g. "#000000 0%, #6d1271 15%, ...")
+const legendGradientCss = `linear-gradient(to right, ${COLOR_STOPS.map(function(s) { return s[1] + " " + s[0] + "%"; }).join(", ")})`;
 
 
 // ==========================
