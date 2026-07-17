@@ -765,17 +765,17 @@
 // value falls into. We interpolate `steps` buckets evenly across
 // [vmin, vmax], and interpolate the color for each bucket across the given
 // hex color stops (piecewise-linear, like a CSS gradient).
-const VMIN = 22;
+const VMIN = 25;
 const VMAX = 95;
 
 // Each stop is [position 0-100, hex color]. Position is a percentage along
-// the VMIN-VMAX range, not necessarily evenly spaced — e.g. 0/15/30/100
-// bunches the black->purple->orange transition into the bottom 30% of the
-// range and stretches orange->yellow across the remaining 70%.
+// the VMIN-VMAX range, not necessarily evenly spaced — e.g. 0/20/40/100
+// bunches the black->purple->orange transition into the bottom 40% of the
+// range and stretches orange->yellow across the remaining 60%.
 const COLOR_STOPS = [
   [0,   "#000000"],
-  [15,  "#6d1271"],
-  [30,  "#efa03b"],
+  [20,  "#6d1271"],
+  [40,  "#efa03b"],
   [100, "#fdff00"]
 ];
 
