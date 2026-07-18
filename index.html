@@ -318,19 +318,32 @@
     padding:14px 14px 12px;
   }
   #editorPhotoCol{
-    width:260px;
     flex:none;
     padding:14px 14px 12px 0;
+    display:flex;
+    flex-direction:row;
+    gap:12px;
+  }
+  .editor-photo-block{
+    width:220px;
+    flex:none;
     display:flex;
     flex-direction:column;
     gap:6px;
   }
-  #editorPhotoWrap{
+  .editor-photo-label{
+    font-size:10.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    color:var(--muted);
+  }
+  .editor-photo-block .zoom-wrap{
     width:100%;
-    height:220px;
+    height:200px;
     position:relative;
   }
-  #editorPhotoWrap::after{
+  .editor-photo-block .zoom-wrap::after{
     content:"⤢ Click to enlarge";
     position:absolute;
     top:6px;
@@ -344,8 +357,8 @@
     opacity:0;
     transition:opacity .12s ease;
   }
-  #editorPhotoWrap:hover::after{ opacity:1; }
-  #editorPhotoInfo{
+  .editor-photo-block .zoom-wrap:hover::after{ opacity:1; }
+  .editor-photo-info{
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -353,7 +366,7 @@
     color:var(--muted);
     gap:8px;
   }
-  #editorPhotoFile{
+  .editor-photo-info .editor-photo-file{
     font-family:"SF Mono",Consolas,monospace;
     font-weight:600;
     color:var(--ink);
@@ -361,8 +374,8 @@
     overflow:hidden;
     text-overflow:ellipsis;
   }
-  #editorPhotoDistance{ flex:none; }
-  #editorPhotoDistance.far{ color:#b45309; font-weight:600; }
+  .editor-photo-info .editor-photo-distance{ flex:none; }
+  .editor-photo-info .editor-photo-distance.far{ color:#b45309; font-weight:600; }
   #editor .editor-close{
     position:absolute; top:8px; right:10px;
     border:none; background:none; cursor:pointer;
@@ -646,7 +659,7 @@
     background:#fff;
     border-radius:16px;
     box-shadow:0 20px 60px rgba(0,0,0,.35);
-    max-width:min(90vw, 720px);
+    max-width:min(94vw, 1040px);
     max-height:90vh;
     overflow:auto;
     padding:16px;
@@ -668,23 +681,38 @@
   }
   #photoModalBody{
     display:flex;
-    flex-direction:column;
-    gap:10px;
+    flex-direction:row;
+    flex-wrap:wrap;
+    gap:14px;
   }
-  #photoModalImg{
+  .photo-modal-col{
+    flex:1 1 320px;
+    min-width:280px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .photo-modal-col-label{
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    color:var(--muted);
+  }
+  .photo-modal-col img{
     width:100%;
-    max-height:70vh;
+    max-height:56vh;
     object-fit:contain;
     border-radius:10px;
     background:#111;
     display:block;
   }
-  #photoModalImgWrap{
+  .photo-modal-col .zoom-wrap{
     width:100%;
-    height:60vh;
-    max-height:70vh;
+    height:50vh;
+    max-height:56vh;
   }
-  #photoModalInfo{
+  .photo-modal-col-info{
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -692,15 +720,16 @@
     color:var(--muted);
     padding:0 4px;
   }
-  #photoModalFile{
+  .photo-modal-col-info .photo-modal-file{
     font-family:"SF Mono",Consolas,monospace;
     font-weight:600;
     color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
-  #photoModalDistance{
-    flex:none;
-  }
-  #photoModalDistance.far{ color:#b45309; font-weight:600; }
+  .photo-modal-col-info .photo-modal-distance{ flex:none; }
+  .photo-modal-col-info .photo-modal-distance.far{ color:#b45309; font-weight:600; }
   .temp-popup{
     position:relative;
     background:var(--ink);
@@ -837,7 +866,7 @@
     <span>Temp</span>
   </button>
 
-  <button class="tool-btn" id="tool-photo" title="Show nearest drone photo (click a point on the map)">
+  <button class="tool-btn" id="tool-photo" title="Show nearest drone photos (click a point on the map)">
     <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
     <span>Photo</span>
   </button>
@@ -934,7 +963,7 @@
 <!-- ================= WIDE-LENS SWIPE SLIDER ================= -->
 <div id="swipeControl">
   <span id="swipeLabelLeft">Thermal</span>
-  <input type="range" id="swipeSlider" min="0" max="100" value="0">
+  <input type="range" id="swipeSlider" min="0" max="100" value="100">
   <span id="swipeLabelRight">Wide-lens</span>
 </div>
 
@@ -1007,13 +1036,27 @@
   </div>
 
   <div id="editorPhotoCol" style="display:none;">
-    <div class="zoom-wrap" id="editorPhotoWrap">
-      <img id="editorPhotoImg" src="" alt="Nearest drone photo">
-      <span class="zoom-hint">Scroll to zoom · drag to pan</span>
+    <div class="editor-photo-block">
+      <div class="editor-photo-label">Thermal flight</div>
+      <div class="zoom-wrap" id="editorPhotoWrapThermal">
+        <img id="editorPhotoImgThermal" src="" alt="Nearest thermal-flight photo">
+        <span class="zoom-hint">Scroll to zoom · drag to pan</span>
+      </div>
+      <div class="editor-photo-info">
+        <span class="editor-photo-file" id="editorPhotoFileThermal"></span>
+        <span class="editor-photo-distance" id="editorPhotoDistanceThermal"></span>
+      </div>
     </div>
-    <div id="editorPhotoInfo">
-      <span id="editorPhotoFile"></span>
-      <span id="editorPhotoDistance"></span>
+    <div class="editor-photo-block">
+      <div class="editor-photo-label">Wide-lens flight</div>
+      <div class="zoom-wrap" id="editorPhotoWrapWide">
+        <img id="editorPhotoImgWide" src="" alt="Nearest wide-lens photo">
+        <span class="zoom-hint">Scroll to zoom · drag to pan</span>
+      </div>
+      <div class="editor-photo-info">
+        <span class="editor-photo-file" id="editorPhotoFileWide"></span>
+        <span class="editor-photo-distance" id="editorPhotoDistanceWide"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -1025,13 +1068,27 @@
   <div id="photoModal">
     <button class="editor-close" id="photoModalClose">&times;</button>
     <div id="photoModalBody">
-      <div class="zoom-wrap" id="photoModalImgWrap">
-        <img id="photoModalImg" src="" alt="Drone photo">
-        <span class="zoom-hint">Scroll to zoom · drag to pan · double-click to reset</span>
+      <div class="photo-modal-col">
+        <div class="photo-modal-col-label">Thermal flight</div>
+        <div class="zoom-wrap" id="photoModalImgWrapThermal">
+          <img id="photoModalImgThermal" src="" alt="Nearest thermal-flight photo">
+          <span class="zoom-hint">Scroll to zoom · drag to pan · double-click to reset</span>
+        </div>
+        <div class="photo-modal-col-info">
+          <div class="photo-modal-file" id="photoModalFileThermal"></div>
+          <div class="photo-modal-distance" id="photoModalDistanceThermal"></div>
+        </div>
       </div>
-      <div id="photoModalInfo">
-        <div id="photoModalFile"></div>
-        <div id="photoModalDistance"></div>
+      <div class="photo-modal-col">
+        <div class="photo-modal-col-label">Wide-lens flight</div>
+        <div class="zoom-wrap" id="photoModalImgWrapWide">
+          <img id="photoModalImgWide" src="" alt="Nearest wide-lens photo">
+          <span class="zoom-hint">Scroll to zoom · drag to pan · double-click to reset</span>
+        </div>
+        <div class="photo-modal-col-info">
+          <div class="photo-modal-file" id="photoModalFileWide"></div>
+          <div class="photo-modal-distance" id="photoModalDistanceWide"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1847,24 +1904,37 @@ function createZoomPan(container, img) {
 }
 
 const PHOTOS_BASE = `${TITILER_BASE}/photos`; // https://tiles.helioscan.ro/photos
-const PHOTOS_INDEX_URL = `${TITILER_BASE}/photos.json`;
+const PHOTOS_INDEX_URL = `${TITILER_BASE}/photos.json`;       // thermal-flight photos
+const PHOTOS_INDEX_URL_WIDE = `${TITILER_BASE}/photos2.json`; // wide-lens-flight photos
 
-let photoIndex = null; // array of {batch, file, path, lat, lon}, loaded once
-let photoIndexLoadPromise = null;
+// Each index is an array of {batch, file, path, lat, lon}, cached per-URL
+// once loaded so switching tools/reopening the editor doesn't refetch.
+const photoIndexCache = {};
+const photoIndexLoadPromises = {};
 
-function loadPhotoIndex() {
-  if (photoIndex) return Promise.resolve(photoIndex);
-  if (photoIndexLoadPromise) return photoIndexLoadPromise;
-  photoIndexLoadPromise = fetch(PHOTOS_INDEX_URL)
+function loadPhotoIndex(url) {
+  if (photoIndexCache[url]) return Promise.resolve(photoIndexCache[url]);
+  if (photoIndexLoadPromises[url]) return photoIndexLoadPromises[url];
+  photoIndexLoadPromises[url] = fetch(url)
     .then((res) => {
-      if (!res.ok) throw new Error("failed to load photos.json");
+      if (!res.ok) throw new Error("failed to load " + url);
       return res.json();
     })
     .then((data) => {
-      photoIndex = data;
+      photoIndexCache[url] = data;
       return data;
     });
-  return photoIndexLoadPromise;
+  return photoIndexLoadPromises[url];
+}
+
+// Loads both indexes in parallel. Either one failing (e.g. photos2.json
+// not uploaded yet) degrades to an empty array for that side rather than
+// breaking the other column.
+function loadBothPhotoIndexes() {
+  return Promise.all([
+    loadPhotoIndex(PHOTOS_INDEX_URL).catch(() => []),
+    loadPhotoIndex(PHOTOS_INDEX_URL_WIDE).catch(() => [])
+  ]).then(([thermalIndex, wideIndex]) => ({ thermalIndex, wideIndex }));
 }
 
 // Haversine distance in meters between two lon/lat points.
@@ -1879,7 +1949,7 @@ function haversineMeters(lon1, lat1, lon2, lat2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-function findNearestPhoto(lon, lat) {
+function findNearestPhoto(lon, lat, photoIndex) {
   if (!photoIndex || photoIndex.length === 0) return null;
   let best = null;
   let bestDist = Infinity;
@@ -1899,99 +1969,117 @@ const PHOTO_DISTANCE_WARN_METERS = 15;
 
 let photoModeActive = false;
 
-const photoModalImgWrap = document.getElementById("photoModalImgWrap");
-const photoModalImg = document.getElementById("photoModalImg");
-const photoModalZoomPan = createZoomPan(photoModalImgWrap, photoModalImg);
+const photoModalImgWrapThermal = document.getElementById("photoModalImgWrapThermal");
+const photoModalImgThermal = document.getElementById("photoModalImgThermal");
+const photoModalZoomPanThermal = createZoomPan(photoModalImgWrapThermal, photoModalImgThermal);
 
-const editorPhotoWrap = document.getElementById("editorPhotoWrap");
-const editorPhotoImg = document.getElementById("editorPhotoImg");
-const editorPhotoZoomPan = createZoomPan(editorPhotoWrap, editorPhotoImg);
+const photoModalImgWrapWide = document.getElementById("photoModalImgWrapWide");
+const photoModalImgWide = document.getElementById("photoModalImgWide");
+const photoModalZoomPanWide = createZoomPan(photoModalImgWrapWide, photoModalImgWide);
 
-// Populates the editor's embedded photo panel with the nearest drone photo
-// to this point feature's coordinates. Reuses the same index/lookup used
-// by the standalone "Photo" tool, so both stay in sync automatically.
-let lastEditorPhotoResult = null;
+const editorPhotoWrapThermal = document.getElementById("editorPhotoWrapThermal");
+const editorPhotoImgThermal = document.getElementById("editorPhotoImgThermal");
+const editorPhotoZoomPanThermal = createZoomPan(editorPhotoWrapThermal, editorPhotoImgThermal);
+
+const editorPhotoWrapWide = document.getElementById("editorPhotoWrapWide");
+const editorPhotoImgWide = document.getElementById("editorPhotoImgWide");
+const editorPhotoZoomPanWide = createZoomPan(editorPhotoWrapWide, editorPhotoImgWide);
+
+// Fills one image/file/distance trio from a {photo, distance} nearest-photo
+// result (or clears it to "No photos indexed" if null). Shared by both the
+// editor panel and the modal, for both the thermal and wide-lens columns.
+function populatePhotoSlot(imgEl, zoomPan, fileEl, distEl, result) {
+  if (!result) {
+    fileEl.textContent = "No photos indexed";
+    distEl.textContent = "";
+    distEl.classList.remove("far");
+    imgEl.removeAttribute("src");
+    return;
+  }
+  const { photo, distance } = result;
+  imgEl.src = `${PHOTOS_BASE}/${photo.path}`;
+  imgEl.alt = photo.file;
+  zoomPan.reset();
+  fileEl.textContent = photo.file;
+
+  const distText = distance < 1
+    ? `${(distance * 100).toFixed(0)}cm`
+    : `${distance.toFixed(1)}m`;
+  if (distance > PHOTO_DISTANCE_WARN_METERS) {
+    distEl.textContent = `~${distText} away`;
+    distEl.classList.add("far");
+  } else {
+    distEl.textContent = `${distText} away`;
+    distEl.classList.remove("far");
+  }
+}
+
+// Populates the editor's embedded photo panel with the nearest thermal-
+// flight AND nearest wide-lens-flight photo to this point feature's
+// coordinates. Reuses the same indexes/lookup used by the standalone
+// "Photo" tool, so both stay in sync automatically.
+let lastEditorPhotoResultThermal = null;
+let lastEditorPhotoResultWide = null;
 
 async function updateEditorPhoto(feature) {
   const coord = feature.getGeometry().getCoordinates();
   const [lon, lat] = ol.proj.toLonLat(coord);
 
-  const fileEl = document.getElementById("editorPhotoFile");
-  const distEl = document.getElementById("editorPhotoDistance");
+  const fileElThermal = document.getElementById("editorPhotoFileThermal");
+  const distElThermal = document.getElementById("editorPhotoDistanceThermal");
+  const fileElWide = document.getElementById("editorPhotoFileWide");
+  const distElWide = document.getElementById("editorPhotoDistanceWide");
 
-  fileEl.textContent = "Loading...";
-  distEl.textContent = "";
-  distEl.classList.remove("far");
-  lastEditorPhotoResult = null;
+  fileElThermal.textContent = "Loading...";
+  distElThermal.textContent = "";
+  distElThermal.classList.remove("far");
+  fileElWide.textContent = "Loading...";
+  distElWide.textContent = "";
+  distElWide.classList.remove("far");
+  lastEditorPhotoResultThermal = null;
+  lastEditorPhotoResultWide = null;
 
   try {
-    await loadPhotoIndex();
-    const result = findNearestPhoto(lon, lat);
-    if (!result) {
-      fileEl.textContent = "No photos indexed";
-      editorPhotoImg.removeAttribute("src");
-      return;
-    }
-    lastEditorPhotoResult = result;
-    const { photo, distance } = result;
-    editorPhotoImg.src = `${PHOTOS_BASE}/${photo.path}`;
-    editorPhotoImg.alt = photo.file;
-    editorPhotoZoomPan.reset();
-    fileEl.textContent = photo.file;
+    const { thermalIndex, wideIndex } = await loadBothPhotoIndexes();
 
-    const distText = distance < 1
-      ? `${(distance * 100).toFixed(0)}cm`
-      : `${distance.toFixed(1)}m`;
-    if (distance > PHOTO_DISTANCE_WARN_METERS) {
-      distEl.textContent = `~${distText} away`;
-      distEl.classList.add("far");
-    } else {
-      distEl.textContent = `${distText} away`;
-    }
+    lastEditorPhotoResultThermal = findNearestPhoto(lon, lat, thermalIndex);
+    populatePhotoSlot(editorPhotoImgThermal, editorPhotoZoomPanThermal, fileElThermal, distElThermal, lastEditorPhotoResultThermal);
+
+    lastEditorPhotoResultWide = findNearestPhoto(lon, lat, wideIndex);
+    populatePhotoSlot(editorPhotoImgWide, editorPhotoZoomPanWide, fileElWide, distElWide, lastEditorPhotoResultWide);
   } catch (err) {
-    fileEl.textContent = "Error loading photo";
+    fileElThermal.textContent = "Error loading photo";
+    fileElWide.textContent = "Error loading photo";
   }
 }
 
-// Clicking the small editor thumbnail opens the same photo full-size in the
+// Clicking either small editor thumbnail opens both photos full-size in the
 // existing zoomable modal — no need to re-run the nearest-photo lookup,
-// we already have the result from when the thumbnail was populated.
-editorPhotoWrap.addEventListener("click", function () {
-  if (editorPhotoZoomPan.wasDragged()) return;
-  if (lastEditorPhotoResult) openPhotoModal(lastEditorPhotoResult);
+// we already have both results from when the thumbnails were populated.
+editorPhotoWrapThermal.addEventListener("click", function () {
+  if (editorPhotoZoomPanThermal.wasDragged()) return;
+  openPhotoModal(lastEditorPhotoResultThermal, lastEditorPhotoResultWide);
+});
+editorPhotoWrapWide.addEventListener("click", function () {
+  if (editorPhotoZoomPanWide.wasDragged()) return;
+  openPhotoModal(lastEditorPhotoResultThermal, lastEditorPhotoResultWide);
 });
 
-function openPhotoModal(result) {
+function openPhotoModal(thermalResult, wideResult) {
   const backdrop = document.getElementById("photoModalBackdrop");
-  const img = document.getElementById("photoModalImg");
-  const fileEl = document.getElementById("photoModalFile");
-  const distEl = document.getElementById("photoModalDistance");
 
-  if (!result) {
-    fileEl.textContent = "No photos indexed";
-    distEl.textContent = "";
-    img.removeAttribute("src");
-    backdrop.classList.add("open");
-    return;
-  }
-
-  const { photo, distance } = result;
-  img.src = `${PHOTOS_BASE}/${photo.path}`;
-  img.alt = photo.file;
-  fileEl.textContent = photo.file;
-  photoModalZoomPan.reset();
-
-  const distText = distance < 1
-    ? `${(distance * 100).toFixed(0)}cm away`
-    : `${distance.toFixed(1)}m away`;
-
-  if (distance > PHOTO_DISTANCE_WARN_METERS) {
-    distEl.textContent = `Nearest available — ${distText}`;
-    distEl.classList.add("far");
-  } else {
-    distEl.textContent = distText;
-    distEl.classList.remove("far");
-  }
+  populatePhotoSlot(
+    photoModalImgThermal, photoModalZoomPanThermal,
+    document.getElementById("photoModalFileThermal"),
+    document.getElementById("photoModalDistanceThermal"),
+    thermalResult
+  );
+  populatePhotoSlot(
+    photoModalImgWide, photoModalZoomPanWide,
+    document.getElementById("photoModalFileWide"),
+    document.getElementById("photoModalDistanceWide"),
+    wideResult
+  );
 
   backdrop.classList.add("open");
 }
@@ -2008,11 +2096,12 @@ document.getElementById("photoModalBackdrop").onclick = function (e) {
 async function handlePhotoClick(coordinate) {
   const [lon, lat] = ol.proj.toLonLat(coordinate);
   try {
-    await loadPhotoIndex();
-    const result = findNearestPhoto(lon, lat);
-    openPhotoModal(result);
+    const { thermalIndex, wideIndex } = await loadBothPhotoIndexes();
+    const thermalResult = findNearestPhoto(lon, lat, thermalIndex);
+    const wideResult = findNearestPhoto(lon, lat, wideIndex);
+    openPhotoModal(thermalResult, wideResult);
   } catch (err) {
-    openPhotoModal(null);
+    openPhotoModal(null, null);
   }
 }
 
@@ -2020,8 +2109,8 @@ function activatePhotoTool(btn) {
   clearInteractions();
   closeEditor();
   photoModeActive = true;
-  loadPhotoIndex(); // kick off loading early so the first click doesn't wait
-  showPlacementHint("Click anywhere to see the nearest drone photo");
+  loadBothPhotoIndexes(); // kick off loading early so the first click doesn't wait
+  showPlacementHint("Click anywhere to see the nearest photos");
   setActiveButton(btn);
 }
 
