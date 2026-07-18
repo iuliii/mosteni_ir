@@ -78,6 +78,39 @@
   }
   #colorInput{ position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
 
+  /* ============ OL ZOOM CONTROL (moved to bottom-right) ============ */
+  .ol-zoom{
+    top:auto !important;
+    left:auto !important;
+    bottom:20px;
+    right:14px;
+    background:#fff !important;
+    border-radius:12px;
+    box-shadow:var(--panel-shadow);
+    padding:4px !important;
+  }
+  .ol-zoom .ol-zoom-in,
+  .ol-zoom .ol-zoom-out{
+    background:transparent !important;
+    color:var(--ink) !important;
+    border-radius:8px !important;
+  }
+  .ol-zoom .ol-zoom-in:hover,
+  .ol-zoom .ol-zoom-out:hover{
+    background:#f3f4f6 !important;
+  }
+
+  /* ============ TOP-LEFT CONTROLS (annotations moved here) ============ */
+  #topLeftControls{
+    position:absolute;
+    top:14px;
+    left:14px;
+    z-index:1000;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
   /* ============ TOP-RIGHT CONTROLS ============ */
   #topRightControls{
     position:absolute;
@@ -166,7 +199,7 @@
   #annotationsPanel{
     position:absolute;
     top:64px;
-    right:14px;
+    left:14px;
     z-index:1000;
     width:250px;
     max-height:min(60vh,420px);
@@ -440,6 +473,47 @@
   #deleteEditorBtn:hover{ background:#fecaca; }
 
   #coordsSection{ margin-bottom:12px; }
+  #coordsInfo{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    background:#f9fafb;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+    font-family:"SF Mono",Consolas,monospace;
+    font-size:11.5px;
+    color:var(--ink);
+  }
+  #coordsInfo .coords-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+  }
+  #coordsInfo .coords-label{
+    font-family:-apple-system,"Segoe UI",Arial,sans-serif;
+    font-size:10.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    color:var(--muted);
+    flex:none;
+  }
+  #coordsInfo .coords-value{
+    text-align:right;
+    white-space:nowrap;
+  }
+  #coordsInfo .coords-value.loading{ color:var(--muted); font-style:italic; }
+  #copyCoordsBtn{
+    flex:none;
+    border:none;
+    background:none;
+    cursor:pointer;
+    color:var(--muted);
+    font-size:13px;
+  }
+  #copyCoordsBtn:hover{ color:var(--accent); }
 
   #rowColSection{ margin-bottom:4px; }
   .row-col-inputs{ display:flex; gap:6px; margin-bottom:8px; }
@@ -457,33 +531,6 @@
     color:var(--accent); font-size:12px; padding:0;
     margin-bottom:12px; text-align:left;
   }
-  #toggleCoordsBtn{
-    border:none; background:none; cursor:pointer;
-    color:var(--accent); font-size:12px; padding:0; margin-bottom:6px;
-  }
-  #coordsBox{
-    display:none;
-    align-items:center;
-    justify-content:space-between;
-    gap:6px;
-    background:#f9fafb;
-    border:1px solid var(--border);
-    border-radius:8px;
-    padding:6px 8px;
-    font-family:"SF Mono",Consolas,monospace;
-    font-size:11.5px;
-    color:var(--ink);
-  }
-  #coordsBox.open{ display:flex; }
-  #copyCoordsBtn{
-    flex:none;
-    border:none;
-    background:none;
-    cursor:pointer;
-    color:var(--muted);
-    font-size:13px;
-  }
-  #copyCoordsBtn:hover{ color:var(--accent); }
 
   /* ============ RULER / MEASURE TOOLTIP ============ */
   .measure-tooltip{
@@ -641,13 +688,16 @@
   </button>
 </div>
 
-<!-- ================= ANNOTATIONS LIST ================= -->
-<div id="topRightControls">
+<!-- ================= ANNOTATIONS LIST (top-left) ================= -->
+<div id="topLeftControls">
   <button id="listToggle" title="Annotations list">
     <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
     <span>Annotations</span>
   </button>
+</div>
 
+<!-- ================= THERMAL SETTINGS (top-right) ================= -->
+<div id="topRightControls">
   <button id="settingsToggle" title="Thermal settings">
     <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
@@ -736,11 +786,17 @@
   <button id="addRowBtn">+ Add row</button>
 
   <div id="coordsSection" style="display:none;">
-    <button id="toggleCoordsBtn">📍 Show coordinates</button>
-    <div id="coordsBox">
-      <span id="coordsText"></span>
-      <button id="copyCoordsBtn" title="Copy to clipboard">⧉</button>
+    <div id="coordsInfo">
+      <div class="coords-row">
+        <span class="coords-label">GPS</span>
+        <span class="coords-value" id="coordsText"></span>
+      </div>
+      <div class="coords-row">
+        <span class="coords-label">Temp</span>
+        <span class="coords-value" id="tempText">—</span>
+      </div>
     </div>
+    <button id="copyCoordsBtn" title="Copy coordinates to clipboard" style="margin-top:4px;">⧉ Copy GPS</button>
   </div>
 
   <div class="editor-actions">
@@ -765,17 +821,17 @@
 // value falls into. We interpolate `steps` buckets evenly across
 // [vmin, vmax], and interpolate the color for each bucket across the given
 // hex color stops (piecewise-linear, like a CSS gradient).
-const VMIN = 25;
+const VMIN = 24.8864479;
 const VMAX = 95;
 
 // Exact control points exported from QGIS (value, r, g, b) — copied directly
 // from the .clr file so the web render matches QGIS's own interpolated
 // color ramp instead of approximating it with even percentage stops.
 const QGIS_CONTROL_POINTS = [
-  [25.0,               0,   0,   0],
-  [40.48076923076923,  109, 18,  113],
-  [57.89663461538461,  239, 160, 59],
-  [94.74758,           253, 255, 0],
+  [24.8864479,         0,   0,   0],
+  [40.30806391149920,  121, 28,  104],
+  [57.16227777295673,  255, 149, 0],
+  [94.74717053112738,  253, 255, 0],
   [95.0,               188, 220, 60]
 ];
 
@@ -1028,22 +1084,43 @@ function openEditor(feature) {
   document.getElementById("editorColumn").value = feature.get("column") || "";
 
   const coordsSection = document.getElementById("coordsSection");
-  const coordsBox = document.getElementById("coordsBox");
-  const toggleCoordsBtn = document.getElementById("toggleCoordsBtn");
-  coordsBox.classList.remove("open");
-  toggleCoordsBtn.textContent = "📍 Show coordinates";
 
   if (isPoint) {
     coordsSection.style.display = "";
-    const lonLat = ol.proj.toLonLat(feature.getGeometry().getCoordinates());
-    document.getElementById("coordsText").textContent =
-      lonLat[1].toFixed(6) + ", " + lonLat[0].toFixed(6);
+    updateCoordsAndTemp(feature);
   } else {
     coordsSection.style.display = "none";
   }
 
   editorOverlay.setPosition(getFeatureAnchor(feature));
   editorEl.classList.add("open");
+}
+
+// Fills in the GPS text immediately, then fetches the real pixel value at
+// that point from TiTiler and fills in the temperature once it resolves.
+async function updateCoordsAndTemp(feature) {
+  const coord = feature.getGeometry().getCoordinates();
+  const lonLat = ol.proj.toLonLat(coord);
+  document.getElementById("coordsText").textContent =
+    lonLat[1].toFixed(6) + ", " + lonLat[0].toFixed(6);
+
+  const tempEl = document.getElementById("tempText");
+  tempEl.textContent = "Reading...";
+  tempEl.classList.add("loading");
+
+  try {
+    const res = await fetch(
+      `${TITILER_BASE}/cog/point/${lonLat[0]},${lonLat[1]}?url=${encodeURIComponent(COG_URL)}`
+    );
+    if (!res.ok) throw new Error("point query failed");
+    const data = await res.json();
+    const value = data.values && data.values[0];
+    tempEl.classList.remove("loading");
+    tempEl.textContent = (value === null || value === undefined) ? "No data" : `${value.toFixed(1)}°C`;
+  } catch (err) {
+    tempEl.classList.remove("loading");
+    tempEl.textContent = "Error";
+  }
 }
 
 function closeEditor() {
@@ -1058,12 +1135,6 @@ document.getElementById("addRowBtn").onclick = () => {
 };
 
 document.getElementById("editorClose").onclick = closeEditor;
-
-document.getElementById("toggleCoordsBtn").onclick = function () {
-  const box = document.getElementById("coordsBox");
-  const isOpen = box.classList.toggle("open");
-  this.textContent = isOpen ? "📍 Hide coordinates" : "📍 Show coordinates";
-};
 
 document.getElementById("copyCoordsBtn").onclick = function () {
   const text = document.getElementById("coordsText").textContent;
@@ -1502,9 +1573,7 @@ function refreshEditorForFeature(feature) {
   if (activeFeature !== feature) return;
   editorOverlay.setPosition(getFeatureAnchor(feature));
   if (feature.getGeometry().getType() === "Point") {
-    const lonLat = ol.proj.toLonLat(feature.getGeometry().getCoordinates());
-    document.getElementById("coordsText").textContent =
-      lonLat[1].toFixed(6) + ", " + lonLat[0].toFixed(6);
+    updateCoordsAndTemp(feature);
   }
 }
 
