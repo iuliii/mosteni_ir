@@ -328,7 +328,23 @@
   #editorPhotoWrap{
     width:100%;
     height:220px;
+    position:relative;
   }
+  #editorPhotoWrap::after{
+    content:"⤢ Click to enlarge";
+    position:absolute;
+    top:6px;
+    left:8px;
+    background:rgba(0,0,0,.55);
+    color:#fff;
+    font-size:10px;
+    padding:2px 7px;
+    border-radius:6px;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .12s ease;
+  }
+  #editorPhotoWrap:hover::after{ opacity:1; }
   #editorPhotoInfo{
     display:flex;
     justify-content:space-between;
@@ -1740,6 +1756,7 @@ document.getElementById("tool-temperature").onclick = (e) => activateTemperature
 function createZoomPan(container, img) {
   let scale = 1, tx = 0, ty = 0;
   let dragging = false, startX = 0, startY = 0, tx0 = 0, ty0 = 0;
+  let dragMoved = false;
 
   function apply() {
     img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
@@ -1765,6 +1782,7 @@ function createZoomPan(container, img) {
 
   container.addEventListener("mousedown", function (e) {
     dragging = true;
+    dragMoved = false;
     startX = e.clientX; startY = e.clientY;
     tx0 = tx; ty0 = ty;
     container.style.cursor = "grabbing";
@@ -1772,6 +1790,9 @@ function createZoomPan(container, img) {
 
   window.addEventListener("mousemove", function (e) {
     if (!dragging) return;
+    if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) {
+      dragMoved = true;
+    }
     tx = tx0 + (e.clientX - startX);
     ty = ty0 + (e.clientY - startY);
     apply();
@@ -1787,7 +1808,7 @@ function createZoomPan(container, img) {
   img.style.transformOrigin = "0 0";
   reset();
 
-  return { reset };
+  return { reset, wasDragged: () => dragMoved };
 }
 
 const PHOTOS_BASE = `${TITILER_BASE}/photos`; // https://tiles.helioscan.ro/photos
@@ -1854,6 +1875,8 @@ const editorPhotoZoomPan = createZoomPan(editorPhotoWrap, editorPhotoImg);
 // Populates the editor's embedded photo panel with the nearest drone photo
 // to this point feature's coordinates. Reuses the same index/lookup used
 // by the standalone "Photo" tool, so both stay in sync automatically.
+let lastEditorPhotoResult = null;
+
 async function updateEditorPhoto(feature) {
   const coord = feature.getGeometry().getCoordinates();
   const [lon, lat] = ol.proj.toLonLat(coord);
@@ -1864,6 +1887,7 @@ async function updateEditorPhoto(feature) {
   fileEl.textContent = "Loading...";
   distEl.textContent = "";
   distEl.classList.remove("far");
+  lastEditorPhotoResult = null;
 
   try {
     await loadPhotoIndex();
@@ -1873,6 +1897,7 @@ async function updateEditorPhoto(feature) {
       editorPhotoImg.removeAttribute("src");
       return;
     }
+    lastEditorPhotoResult = result;
     const { photo, distance } = result;
     editorPhotoImg.src = `${PHOTOS_BASE}/${photo.path}`;
     editorPhotoImg.alt = photo.file;
@@ -1892,6 +1917,14 @@ async function updateEditorPhoto(feature) {
     fileEl.textContent = "Error loading photo";
   }
 }
+
+// Clicking the small editor thumbnail opens the same photo full-size in the
+// existing zoomable modal — no need to re-run the nearest-photo lookup,
+// we already have the result from when the thumbnail was populated.
+editorPhotoWrap.addEventListener("click", function () {
+  if (editorPhotoZoomPan.wasDragged()) return;
+  if (lastEditorPhotoResult) openPhotoModal(lastEditorPhotoResult);
+});
 
 function openPhotoModal(result) {
   const backdrop = document.getElementById("photoModalBackdrop");
