@@ -303,14 +303,50 @@
   /* ============ FEATURE EDITOR POPUP ============ */
   #editor{
     position:absolute;
+    display:none;
+    align-items:flex-start;
+    gap:0;
     background:#fff;
     border-radius:14px;
     box-shadow:var(--panel-shadow);
-    padding:14px 14px 12px;
-    width:230px;
-    display:none;
   }
-  #editor.open{ display:block; }
+  #editor.open{ display:flex; }
+  #editorMainCol{
+    position:relative;
+    width:230px;
+    flex:none;
+    padding:14px 14px 12px;
+  }
+  #editorPhotoCol{
+    width:260px;
+    flex:none;
+    padding:14px 14px 12px 0;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  #editorPhotoWrap{
+    width:100%;
+    height:220px;
+  }
+  #editorPhotoInfo{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:11px;
+    color:var(--muted);
+    gap:8px;
+  }
+  #editorPhotoFile{
+    font-family:"SF Mono",Consolas,monospace;
+    font-weight:600;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #editorPhotoDistance{ flex:none; }
+  #editorPhotoDistance.far{ color:#b45309; font-weight:600; }
   #editor .editor-close{
     position:absolute; top:8px; right:10px;
     border:none; background:none; cursor:pointer;
@@ -546,6 +582,36 @@
     box-shadow:0 2px 6px rgba(15,23,42,.25);
   }
 
+  /* ============ ZOOMABLE IMAGE (shared: modal + editor photo panel) ============ */
+  .zoom-wrap{
+    position:relative;
+    overflow:hidden;
+    background:#111;
+    border-radius:10px;
+    cursor:grab;
+    touch-action:none;
+  }
+  .zoom-wrap img{
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    user-select:none;
+    -webkit-user-drag:none;
+    will-change:transform;
+  }
+  .zoom-hint{
+    position:absolute;
+    bottom:6px;
+    right:8px;
+    background:rgba(0,0,0,.55);
+    color:#fff;
+    font-size:10px;
+    padding:2px 7px;
+    border-radius:6px;
+    pointer-events:none;
+  }
+
   /* ============ NEAREST-PHOTO MODAL ============ */
   #photoModalBackdrop{
     position:fixed;
@@ -596,6 +662,11 @@
     border-radius:10px;
     background:#111;
     display:block;
+  }
+  #photoModalImgWrap{
+    width:100%;
+    height:60vh;
+    max-height:70vh;
   }
   #photoModalInfo{
     display:flex;
@@ -828,6 +899,7 @@
 
 <!-- ================= FEATURE NAME / DESCRIPTION EDITOR ================= -->
 <div id="editor">
+  <div id="editorMainCol">
   <button class="editor-close" id="editorClose">&times;</button>
 
   <label for="editorName">Name</label>
@@ -881,6 +953,18 @@
     <button id="saveEditorBtn">Save</button>
     <button id="deleteEditorBtn">Delete</button>
   </div>
+  </div>
+
+  <div id="editorPhotoCol" style="display:none;">
+    <div class="zoom-wrap" id="editorPhotoWrap">
+      <img id="editorPhotoImg" src="" alt="Nearest drone photo">
+      <span class="zoom-hint">Scroll to zoom · drag to pan</span>
+    </div>
+    <div id="editorPhotoInfo">
+      <span id="editorPhotoFile"></span>
+      <span id="editorPhotoDistance"></span>
+    </div>
+  </div>
 </div>
 
 <div id="placementHint"></div>
@@ -890,7 +974,10 @@
   <div id="photoModal">
     <button class="editor-close" id="photoModalClose">&times;</button>
     <div id="photoModalBody">
-      <img id="photoModalImg" src="" alt="Drone photo">
+      <div class="zoom-wrap" id="photoModalImgWrap">
+        <img id="photoModalImg" src="" alt="Drone photo">
+        <span class="zoom-hint">Scroll to zoom · drag to pan · double-click to reset</span>
+      </div>
       <div id="photoModalInfo">
         <div id="photoModalFile"></div>
         <div id="photoModalDistance"></div>
@@ -1176,12 +1263,16 @@ function openEditor(feature) {
   document.getElementById("editorColumn").value = feature.get("column") || "";
 
   const coordsSection = document.getElementById("coordsSection");
+  const editorPhotoCol = document.getElementById("editorPhotoCol");
 
   if (isPoint) {
     coordsSection.style.display = "";
     updateCoordsAndTemp(feature);
+    editorPhotoCol.style.display = "flex";
+    updateEditorPhoto(feature);
   } else {
     coordsSection.style.display = "none";
+    editorPhotoCol.style.display = "none";
   }
 
   editorOverlay.setPosition(getFeatureAnchor(feature));
@@ -1640,8 +1731,64 @@ document.getElementById("tool-temperature").onclick = (e) => activateTemperature
 
 
 // ==========================
-// NEAREST DRONE PHOTO LOOKUP ("Photo" tool)
+// ZOOM/PAN CONTROLLER (shared by photo modal + editor photo panel)
 // ==========================
+
+// Wraps an <img> inside a container: wheel to zoom (centered on cursor),
+// drag to pan once zoomed in, double-click to reset. Call .reset() whenever
+// a new image src is assigned so the next photo starts at 1x, centered.
+function createZoomPan(container, img) {
+  let scale = 1, tx = 0, ty = 0;
+  let dragging = false, startX = 0, startY = 0, tx0 = 0, ty0 = 0;
+
+  function apply() {
+    img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  }
+
+  function reset() {
+    scale = 1; tx = 0; ty = 0;
+    img.style.transition = "none";
+    apply();
+  }
+
+  container.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    const rect = container.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const prevScale = scale;
+    scale = Math.min(6, Math.max(1, scale * (1 - e.deltaY * 0.0015)));
+    tx = mx - (mx - tx) * (scale / prevScale);
+    ty = my - (my - ty) * (scale / prevScale);
+    apply();
+  }, { passive: false });
+
+  container.addEventListener("mousedown", function (e) {
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    tx0 = tx; ty0 = ty;
+    container.style.cursor = "grabbing";
+  });
+
+  window.addEventListener("mousemove", function (e) {
+    if (!dragging) return;
+    tx = tx0 + (e.clientX - startX);
+    ty = ty0 + (e.clientY - startY);
+    apply();
+  });
+
+  window.addEventListener("mouseup", function () {
+    dragging = false;
+    container.style.cursor = "grab";
+  });
+
+  container.addEventListener("dblclick", reset);
+
+  img.style.transformOrigin = "0 0";
+  reset();
+
+  return { reset };
+}
 
 const PHOTOS_BASE = `${TITILER_BASE}/photos`; // https://tiles.helioscan.ro/photos
 const PHOTOS_INDEX_URL = `${TITILER_BASE}/photos.json`;
@@ -1696,6 +1843,56 @@ const PHOTO_DISTANCE_WARN_METERS = 15;
 
 let photoModeActive = false;
 
+const photoModalImgWrap = document.getElementById("photoModalImgWrap");
+const photoModalImg = document.getElementById("photoModalImg");
+const photoModalZoomPan = createZoomPan(photoModalImgWrap, photoModalImg);
+
+const editorPhotoWrap = document.getElementById("editorPhotoWrap");
+const editorPhotoImg = document.getElementById("editorPhotoImg");
+const editorPhotoZoomPan = createZoomPan(editorPhotoWrap, editorPhotoImg);
+
+// Populates the editor's embedded photo panel with the nearest drone photo
+// to this point feature's coordinates. Reuses the same index/lookup used
+// by the standalone "Photo" tool, so both stay in sync automatically.
+async function updateEditorPhoto(feature) {
+  const coord = feature.getGeometry().getCoordinates();
+  const [lon, lat] = ol.proj.toLonLat(coord);
+
+  const fileEl = document.getElementById("editorPhotoFile");
+  const distEl = document.getElementById("editorPhotoDistance");
+
+  fileEl.textContent = "Loading...";
+  distEl.textContent = "";
+  distEl.classList.remove("far");
+
+  try {
+    await loadPhotoIndex();
+    const result = findNearestPhoto(lon, lat);
+    if (!result) {
+      fileEl.textContent = "No photos indexed";
+      editorPhotoImg.removeAttribute("src");
+      return;
+    }
+    const { photo, distance } = result;
+    editorPhotoImg.src = `${PHOTOS_BASE}/${photo.path}`;
+    editorPhotoImg.alt = photo.file;
+    editorPhotoZoomPan.reset();
+    fileEl.textContent = photo.file;
+
+    const distText = distance < 1
+      ? `${(distance * 100).toFixed(0)}cm`
+      : `${distance.toFixed(1)}m`;
+    if (distance > PHOTO_DISTANCE_WARN_METERS) {
+      distEl.textContent = `~${distText} away`;
+      distEl.classList.add("far");
+    } else {
+      distEl.textContent = `${distText} away`;
+    }
+  } catch (err) {
+    fileEl.textContent = "Error loading photo";
+  }
+}
+
 function openPhotoModal(result) {
   const backdrop = document.getElementById("photoModalBackdrop");
   const img = document.getElementById("photoModalImg");
@@ -1714,6 +1911,7 @@ function openPhotoModal(result) {
   img.src = `${PHOTOS_BASE}/${photo.path}`;
   img.alt = photo.file;
   fileEl.textContent = photo.file;
+  photoModalZoomPan.reset();
 
   const distText = distance < 1
     ? `${(distance * 100).toFixed(0)}cm away`
@@ -1794,6 +1992,7 @@ function refreshEditorForFeature(feature) {
   editorOverlay.setPosition(getFeatureAnchor(feature));
   if (feature.getGeometry().getType() === "Point") {
     updateCoordsAndTemp(feature);
+    updateEditorPhoto(feature);
   }
 }
 
