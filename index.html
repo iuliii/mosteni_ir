@@ -546,7 +546,74 @@
     box-shadow:0 2px 6px rgba(15,23,42,.25);
   }
 
-  /* ============ TEMPERATURE POPUP ============ */
+  /* ============ NEAREST-PHOTO MODAL ============ */
+  #photoModalBackdrop{
+    position:fixed;
+    inset:0;
+    z-index:2000;
+    background:rgba(15,23,42,.55);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  #photoModalBackdrop.open{ display:flex; }
+
+  #photoModal{
+    position:relative;
+    background:#fff;
+    border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+    max-width:min(90vw, 720px);
+    max-height:90vh;
+    overflow:auto;
+    padding:16px;
+  }
+  #photoModal .editor-close{
+    position:absolute;
+    top:10px;
+    right:14px;
+    border:none;
+    background:#fff;
+    box-shadow:var(--panel-shadow);
+    border-radius:50%;
+    width:28px;
+    height:28px;
+    cursor:pointer;
+    font-size:16px;
+    color:var(--ink);
+    z-index:1;
+  }
+  #photoModalBody{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  #photoModalImg{
+    width:100%;
+    max-height:70vh;
+    object-fit:contain;
+    border-radius:10px;
+    background:#111;
+    display:block;
+  }
+  #photoModalInfo{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:12.5px;
+    color:var(--muted);
+    padding:0 4px;
+  }
+  #photoModalFile{
+    font-family:"SF Mono",Consolas,monospace;
+    font-weight:600;
+    color:var(--ink);
+  }
+  #photoModalDistance{
+    flex:none;
+  }
+  #photoModalDistance.far{ color:#b45309; font-weight:600; }
   .temp-popup{
     position:relative;
     background:var(--ink);
@@ -655,6 +722,11 @@
     <span>Temp</span>
   </button>
 
+  <button class="tool-btn" id="tool-photo" title="Show nearest drone photo (click a point on the map)">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    <span>Photo</span>
+  </button>
+
   <div class="tb-divider"></div>
 
   <button class="tool-btn" id="colorBtn" title="Color">
@@ -686,6 +758,12 @@
     <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
     <span>Export</span>
   </button>
+
+  <button class="tool-btn" id="tool-import" title="Import GeoJSON">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
+    <span>Import</span>
+  </button>
+  <input type="file" id="importFileInput" accept=".geojson,.json,application/geo+json,application/json" style="display:none;">
 </div>
 
 <!-- ================= ANNOTATIONS LIST (top-left) ================= -->
@@ -806,6 +884,20 @@
 </div>
 
 <div id="placementHint"></div>
+
+<!-- ================= NEAREST-PHOTO MODAL ================= -->
+<div id="photoModalBackdrop">
+  <div id="photoModal">
+    <button class="editor-close" id="photoModalClose">&times;</button>
+    <div id="photoModalBody">
+      <img id="photoModalImg" src="" alt="Drone photo">
+      <div id="photoModalInfo">
+        <div id="photoModalFile"></div>
+        <div id="photoModalDistance"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/ol@v10.4.0/dist/ol.js"></script>
 
@@ -1296,6 +1388,11 @@ map.on("click", (evt) => {
 
   if (temperatureModeActive) {
     handleTemperatureClick(evt.coordinate);
+    return;
+  }
+
+  if (photoModeActive) {
+    handlePhotoClick(evt.coordinate);
   }
 });
 
@@ -1543,8 +1640,131 @@ document.getElementById("tool-temperature").onclick = (e) => activateTemperature
 
 
 // ==========================
-// LEGEND (matches the custom colormap + real value range)
+// NEAREST DRONE PHOTO LOOKUP ("Photo" tool)
 // ==========================
+
+const PHOTOS_BASE = `${TITILER_BASE}/photos`; // https://tiles.helioscan.ro/photos
+const PHOTOS_INDEX_URL = `${TITILER_BASE}/photos.json`;
+
+let photoIndex = null; // array of {batch, file, path, lat, lon}, loaded once
+let photoIndexLoadPromise = null;
+
+function loadPhotoIndex() {
+  if (photoIndex) return Promise.resolve(photoIndex);
+  if (photoIndexLoadPromise) return photoIndexLoadPromise;
+  photoIndexLoadPromise = fetch(PHOTOS_INDEX_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error("failed to load photos.json");
+      return res.json();
+    })
+    .then((data) => {
+      photoIndex = data;
+      return data;
+    });
+  return photoIndexLoadPromise;
+}
+
+// Haversine distance in meters between two lon/lat points.
+function haversineMeters(lon1, lat1, lon2, lat2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function findNearestPhoto(lon, lat) {
+  if (!photoIndex || photoIndex.length === 0) return null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const p of photoIndex) {
+    const d = haversineMeters(lon, lat, p.lon, p.lat);
+    if (d < bestDist) {
+      bestDist = d;
+      best = p;
+    }
+  }
+  return { photo: best, distance: bestDist };
+}
+
+// Distance beyond which we flag the match as "not really at this spot" —
+// tune this to your flight's photo spacing/overlap.
+const PHOTO_DISTANCE_WARN_METERS = 15;
+
+let photoModeActive = false;
+
+function openPhotoModal(result) {
+  const backdrop = document.getElementById("photoModalBackdrop");
+  const img = document.getElementById("photoModalImg");
+  const fileEl = document.getElementById("photoModalFile");
+  const distEl = document.getElementById("photoModalDistance");
+
+  if (!result) {
+    fileEl.textContent = "No photos indexed";
+    distEl.textContent = "";
+    img.removeAttribute("src");
+    backdrop.classList.add("open");
+    return;
+  }
+
+  const { photo, distance } = result;
+  img.src = `${PHOTOS_BASE}/${photo.path}`;
+  img.alt = photo.file;
+  fileEl.textContent = photo.file;
+
+  const distText = distance < 1
+    ? `${(distance * 100).toFixed(0)}cm away`
+    : `${distance.toFixed(1)}m away`;
+
+  if (distance > PHOTO_DISTANCE_WARN_METERS) {
+    distEl.textContent = `Nearest available — ${distText}`;
+    distEl.classList.add("far");
+  } else {
+    distEl.textContent = distText;
+    distEl.classList.remove("far");
+  }
+
+  backdrop.classList.add("open");
+}
+
+function closePhotoModal() {
+  document.getElementById("photoModalBackdrop").classList.remove("open");
+}
+
+document.getElementById("photoModalClose").onclick = closePhotoModal;
+document.getElementById("photoModalBackdrop").onclick = function (e) {
+  if (e.target === this) closePhotoModal();
+};
+
+async function handlePhotoClick(coordinate) {
+  const [lon, lat] = ol.proj.toLonLat(coordinate);
+  try {
+    await loadPhotoIndex();
+    const result = findNearestPhoto(lon, lat);
+    openPhotoModal(result);
+  } catch (err) {
+    openPhotoModal(null);
+  }
+}
+
+function activatePhotoTool(btn) {
+  clearInteractions();
+  closeEditor();
+  photoModeActive = true;
+  loadPhotoIndex(); // kick off loading early so the first click doesn't wait
+  showPlacementHint("Click anywhere to see the nearest drone photo");
+  setActiveButton(btn);
+}
+
+function deactivatePhotoTool() {
+  photoModeActive = false;
+  hidePlacementHint();
+}
+
+document.getElementById("tool-photo").onclick = (e) => activatePhotoTool(e.currentTarget);
 
 document.getElementById("legendBar").style.background = legendGradientCss;
 document.getElementById("legendMin").textContent = VMIN;
@@ -1606,6 +1826,9 @@ function clearInteractions() {
   }
   if (temperatureModeActive) {
     deactivateTemperatureTool();
+  }
+  if (photoModeActive) {
+    deactivatePhotoTool();
   }
   map.removeInteraction(selectInteraction);
   map.removeInteraction(modifyInteraction);
@@ -1783,6 +2006,55 @@ document.getElementById("tool-export").onclick = function () {
   a.href = url;
   a.download = "annotations.geojson";
   a.click();
+};
+
+document.getElementById("tool-import").onclick = function () {
+  document.getElementById("importFileInput").click();
+};
+
+document.getElementById("importFileInput").onchange = function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (evt) {
+    try {
+      const format = new ol.format.GeoJSON();
+      // The exported file's coordinates are plain lon/lat (GeoJSON's default
+      // dataProjection, EPSG:4326) since that's what writeFeatures produced
+      // when we told it the *source* features were in EPSG:3857. Reading
+      // back with featureProjection: "EPSG:3857" reprojects those lon/lat
+      // coordinates into the map's own projection, undoing that conversion.
+      const features = format.readFeatures(evt.target.result, {
+        featureProjection: "EPSG:3857"
+      });
+
+      if (features.length === 0) {
+        alert("No features found in that file.");
+        return;
+      }
+
+      // Feature properties (name, description, shape, color, row, column,
+      // hidden) were written directly into GeoJSON "properties" on export,
+      // so ol.format.GeoJSON restores them automatically on read — no
+      // manual remapping needed here.
+      vectorSource.addFeatures(features);
+
+      // Zoom/pan to fit whatever was just imported, so it's immediately visible
+      // even if it's outside the current view.
+      const extent = ol.extent.createEmpty();
+      features.forEach((f) => ol.extent.extend(extent, f.getGeometry().getExtent()));
+      if (ol.extent.getWidth(extent) > 0 || ol.extent.getHeight(extent) > 0) {
+        map.getView().fit(extent, { padding: [60, 60, 60, 60], maxZoom: 19, duration: 400 });
+      }
+    } catch (err) {
+      alert("Couldn't parse that file as GeoJSON: " + err.message);
+    } finally {
+      // reset so selecting the same file again still fires 'onchange'
+      e.target.value = "";
+    }
+  };
+  reader.readAsText(file);
 };
 
 
