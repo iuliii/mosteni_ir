@@ -428,18 +428,31 @@
   .desc-row button:hover{ background:#fee2e2; color:#dc2626; border-color:#fecaca; }
 
   #addRowBtn{
-    width:100%;
-    padding:6px;
-    margin-top:2px;
-    margin-bottom:12px;
-    border:1px dashed var(--border);
-    border-radius:8px;
-    background:none;
-    cursor:pointer;
-    font-size:12px;
+    width:22px;
+    height:22px;
+    padding:0;
+    border:none;
+    border-radius:6px;
+    background:var(--accent-bg);
     color:var(--accent);
+    cursor:pointer;
+    font-size:15px;
+    font-weight:700;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex:none;
   }
-  #addRowBtn:hover{ background:var(--accent-bg); }
+  #addRowBtn:hover{ background:#e0e3fc; }
+
+  .desc-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .desc-header label{ margin:0; }
 
   #perpSection{ margin-bottom:12px; }
   #addPerpendicularBtn{
@@ -580,9 +593,39 @@
   }
   #copyCoordsBtn:hover{ color:var(--accent); }
 
+  #severitySection{ margin-bottom:12px; }
+  .severity-buttons{ display:flex; gap:6px; }
+  .severity-btn{
+    flex:1;
+    padding:7px 4px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+  }
+  .severity-btn:hover{ background:#f3f4f6; }
+  .severity-btn.active[data-severity="low"]{ background:#dcfce7; border-color:#86efac; color:#15803d; }
+  .severity-btn.active[data-severity="medium"]{ background:#fef3c7; border-color:#fcd34d; color:#b45309; }
+  .severity-btn.active[data-severity="high"]{ background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
+
   #rowColSection{ margin-bottom:4px; }
-  .row-col-inputs{ display:flex; gap:6px; margin-bottom:8px; }
-  .row-col-inputs input{
+  .row-col-line{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .row-col-line .row-col-label{
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+    flex:none;
+    width:44px;
+  }
+  .row-col-line input{
     flex:1;
     box-sizing:border-box;
     padding:7px 8px;
@@ -628,6 +671,8 @@
     user-select:none;
     -webkit-user-drag:none;
     will-change:transform;
+    image-rendering: high-quality;
+    image-rendering: -webkit-optimize-contrast;
   }
   .zoom-hint{
     position:absolute;
@@ -1003,17 +1048,31 @@
   </div>
 
   <div id="rowColSection" style="display:none;">
-    <label>Row / Column</label>
-    <div class="row-col-inputs">
-      <input id="editorRow" type="text" placeholder="Row">
-      <input id="editorColumn" type="text" placeholder="Column">
+    <div class="row-col-line">
+      <span class="row-col-label">Row</span>
+      <input id="editorRow" type="text" placeholder="e.g. 3">
+    </div>
+    <div class="row-col-line">
+      <span class="row-col-label">Column</span>
+      <input id="editorColumn" type="text" placeholder="e.g. 7">
     </div>
     <button id="detectRowBtn">📐 Auto-detect row &amp; column from nearest lines</button>
   </div>
 
-  <label>Description</label>
+  <div id="severitySection" style="display:none;">
+    <label>Severity</label>
+    <div class="severity-buttons">
+      <button type="button" class="severity-btn" data-severity="low">Low</button>
+      <button type="button" class="severity-btn" data-severity="medium">Medium</button>
+      <button type="button" class="severity-btn" data-severity="high">High</button>
+    </div>
+  </div>
+
+  <div class="desc-header">
+    <label style="margin:0;">Description</label>
+    <button id="addRowBtn" title="Add description row">+</button>
+  </div>
   <div id="descRows"></div>
-  <button id="addRowBtn">+ Add row</button>
 
   <div id="coordsSection" style="display:none;">
     <div id="coordsInfo">
@@ -1215,6 +1274,8 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+const SEVERITY_COLORS = { low: "#22c55e", medium: "#f59e0b", high: "#ef4444" };
+
 function featureStyle(feature) {
   if (feature.get("hidden")) return [];
   const shape = feature.get("shape");
@@ -1233,6 +1294,17 @@ function featureStyle(feature) {
       fill: new ol.style.Fill({ color: hexToRgba(color, 0.18 * alpha) })
     })
   ];
+
+  const severity = feature.get("severity");
+  if (!isGuide && severity && SEVERITY_COLORS[severity] && feature.getGeometry().getType() === "Point") {
+    styles.unshift(new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 10,
+        stroke: new ol.style.Stroke({ color: SEVERITY_COLORS[severity], width: 3 }),
+        fill: new ol.style.Fill({ color: "rgba(0,0,0,0)" })
+      })
+    }));
+  }
 
   const name = feature.get("name");
   if (name) {
@@ -1346,6 +1418,20 @@ function renderDescRows(rows) {
 }
 
 let editingRows = [];
+let selectedSeverity = "";
+
+function renderSeverityButtons() {
+  document.querySelectorAll(".severity-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.severity === selectedSeverity);
+  });
+}
+
+document.querySelectorAll(".severity-btn").forEach((btn) => {
+  btn.onclick = () => {
+    selectedSeverity = (selectedSeverity === btn.dataset.severity) ? "" : btn.dataset.severity;
+    renderSeverityButtons();
+  };
+});
 
 function openEditor(feature) {
   activeFeature = feature;
@@ -1369,6 +1455,10 @@ function openEditor(feature) {
   rowColSection.style.display = isPoint ? "" : "none";
   document.getElementById("editorRow").value = feature.get("row") || "";
   document.getElementById("editorColumn").value = feature.get("column") || "";
+
+  document.getElementById("severitySection").style.display = isPoint ? "" : "none";
+  selectedSeverity = feature.get("severity") || "";
+  renderSeverityButtons();
 
   const coordsSection = document.getElementById("coordsSection");
   const editorPhotoCol = document.getElementById("editorPhotoCol");
@@ -1503,6 +1593,7 @@ document.getElementById("saveEditorBtn").onclick = () => {
   activeFeature.set("description", rows);
   activeFeature.set("row", document.getElementById("editorRow").value.trim());
   activeFeature.set("column", document.getElementById("editorColumn").value.trim());
+  activeFeature.set("severity", selectedSeverity);
   vectorLayer.changed();
   renderAnnotationsList();
   closeEditor();
