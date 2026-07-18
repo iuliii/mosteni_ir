@@ -715,6 +715,34 @@
   }
   .temp-popup.loading{ opacity:0.6; font-weight:500; }
 
+  /* ============ WIDE-LENS SWIPE SLIDER ============ */
+  #swipeControl{
+    position:absolute;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:1000;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:#fff;
+    border-radius:12px;
+    box-shadow:var(--panel-shadow);
+    padding:8px 16px;
+    width:min(90vw, 420px);
+  }
+  #swipeControl span{
+    font-size:11.5px;
+    font-weight:700;
+    color:var(--muted);
+    white-space:nowrap;
+    flex:none;
+  }
+  #swipeControl input[type=range]{
+    flex:1;
+    accent-color:var(--accent);
+  }
+
   /* ============ LEGEND ============ */
   #legend{
     position:absolute;
@@ -901,6 +929,13 @@
   </div>
 
   <button id="fullscreenBtn">Toggle fullscreen</button>
+</div>
+
+<!-- ================= WIDE-LENS SWIPE SLIDER ================= -->
+<div id="swipeControl">
+  <span id="swipeLabelLeft">Thermal</span>
+  <input type="range" id="swipeSlider" min="0" max="100" value="0">
+  <span id="swipeLabelRight">Wide-lens</span>
 </div>
 
 <!-- ================= LEGEND ================= -->
@@ -2000,6 +2035,64 @@ document.getElementById("tool-photo").onclick = (e) => activatePhotoTool(e.curre
 document.getElementById("legendBar").style.background = legendGradientCss;
 document.getElementById("legendMin").textContent = VMIN;
 document.getElementById("legendMax").textContent = VMAX;
+
+
+// ==========================
+// WIDE-LENS COMPARISON LAYER (swipe reveal)
+// ==========================
+
+// EDIT THIS once you've uploaded the wide-lens orthomosaic via FTP:
+const WIDE_COG_URL = "/data/geotiffs/pix_transparent_mosaic_group1.tif";
+
+const wideTileURL =
+  `${TITILER_BASE}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(WIDE_COG_URL)}`;
+
+const wideLayer = new ol.layer.Tile({
+  source: new ol.source.XYZ({
+    url: wideTileURL,
+    crossOrigin: "anonymous"
+  }),
+  opacity: 1
+});
+// Insert directly above the thermal layer (index 1) rather than on top of
+// everything, so annotations/rows/columns/measure overlays stay visible
+// above the swipe comparison instead of being covered by it.
+map.getLayers().insertAt(2, wideLayer);
+
+// Clips wideLayer's rendered canvas to only the region left of the slider
+// handle each frame, so everything right of the handle still shows
+// whatever's underneath (the thermal layer) unobstructed. Uses
+// ol.render.getRenderPixel rather than raw slider-percentage-of-CSS-width
+// math so this stays correct on high-DPI displays too.
+const swipeSlider = document.getElementById("swipeSlider");
+
+wideLayer.on("prerender", function (event) {
+  const ctx = event.context;
+  const mapSize = map.getSize();
+  const width = mapSize[0] * (swipeSlider.value / 100);
+
+  const tl = ol.render.getRenderPixel(event, [width, 0]);
+  const bl = ol.render.getRenderPixel(event, [width, mapSize[1]]);
+  const tr = ol.render.getRenderPixel(event, [mapSize[0], 0]);
+  const br = ol.render.getRenderPixel(event, [mapSize[0], mapSize[1]]);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(tl[0], tl[1]);
+  ctx.lineTo(bl[0], bl[1]);
+  ctx.lineTo(br[0], br[1]);
+  ctx.lineTo(tr[0], tr[1]);
+  ctx.closePath();
+  ctx.clip();
+});
+
+wideLayer.on("postrender", function (event) {
+  event.context.restore();
+});
+
+swipeSlider.addEventListener("input", function () {
+  map.render();
+});
 
 
 // ==========================
