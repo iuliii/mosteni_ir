@@ -304,7 +304,7 @@
   #editor{
     position:absolute;
     display:none;
-    align-items:flex-start;
+    align-items:stretch;
     gap:0;
     background:#fff;
     border-radius:14px;
@@ -325,11 +325,12 @@
     gap:12px;
   }
   .editor-photo-block{
-    width:220px;
+    width:260px;
     flex:none;
     display:flex;
     flex-direction:column;
     gap:6px;
+    height:100%;
   }
   .editor-photo-label{
     font-size:10.5px;
@@ -340,7 +341,8 @@
   }
   .editor-photo-block .zoom-wrap{
     width:100%;
-    height:200px;
+    flex:1;
+    min-height:0;
     position:relative;
   }
   .editor-photo-block .zoom-wrap::after{
@@ -2750,6 +2752,36 @@ document.getElementById("fullscreenBtn").onclick = function () {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen();
   else document.exitFullscreen();
 };
+
+
+// ==========================
+// DEFAULT ANNOTATIONS (auto-loaded once, for THIS deployment only)
+// ==========================
+
+// Point this at wherever you've uploaded this site's exported .geojson on
+// the server. Leave as "" to disable auto-loading — e.g. if you copy this
+// index.html as a blank template for a different site.
+const DEFAULT_ANNOTATIONS_URL = "https://tiles.helioscan.ro/annotations/mosteni_demo.geojson";
+
+if (DEFAULT_ANNOTATIONS_URL) {
+  fetch(DEFAULT_ANNOTATIONS_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error("failed to load default annotations (" + res.status + ")");
+      return res.text();
+    })
+    .then((text) => {
+      const format = new ol.format.GeoJSON();
+      const features = format.readFeatures(text, { featureProjection: "EPSG:3857" });
+      // Load silently into the undo/redo history so a stray Ctrl+Z can't
+      // wipe out the whole preloaded set.
+      suppressHistory = true;
+      vectorSource.addFeatures(features);
+      suppressHistory = false;
+    })
+    .catch((err) => {
+      console.warn("No default annotations loaded:", err);
+    });
+}
 
 </script>
 
