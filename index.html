@@ -1962,8 +1962,12 @@ function createZoomPan(container, img) {
   // Sizes the img's real CSS box to fit inside the container (so the
   // browser's own resize does the heavy downscaling, not a transform), then
   // resets the zoom multiplier to 1. maxScale is set so zooming can reach
-  // at least true native 1:1 pixel resolution, regardless of how small the
-  // fit size is.
+  // at least true native 1:1 pixel resolution ON THIS SCREEN, regardless of
+  // how small the fit size is. On HiDPI/Retina displays, 1 CSS pixel maps
+  // to devicePixelRatio real screen pixels, so the naive "1 image px per
+  // CSS px" ceiling actually stops well short of native resolution and the
+  // zoomed-in view still looks soft. Folding devicePixelRatio into the
+  // ceiling lets users zoom all the way to true native detail.
   function computeFit() {
     const naturalW = img.naturalWidth;
     const naturalH = img.naturalHeight;
@@ -1980,7 +1984,9 @@ function createZoomPan(container, img) {
     scale = 1;
     tx = (rect.width - fittedW) / 2;
     ty = (rect.height - fittedH) / 2;
-    maxScale = Math.max(1 / fitScale, 1);
+
+    const dpr = window.devicePixelRatio || 1;
+    maxScale = Math.max(1 / (fitScale * dpr), 1);
 
     img.style.transition = "none";
     apply();
