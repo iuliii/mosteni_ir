@@ -667,14 +667,9 @@
   }
   .zoom-wrap img{
     display:block;
-    width:100%;
-    height:100%;
-    object-fit:contain;
     user-select:none;
     -webkit-user-drag:none;
     will-change:transform;
-    image-rendering: high-quality;
-    image-rendering: -webkit-optimize-contrast;
   }
   .zoom-hint{
     position:absolute;
@@ -1937,9 +1932,15 @@ document.getElementById("tool-temperature").onclick = (e) => activateTemperature
 
 // Wraps an <img> inside a container: wheel to zoom (centered on cursor),
 // drag to pan once zoomed in, double-click to reset. Call .reset() whenever
-// a new image src is assigned so the next photo starts at 1x, centered.
+// a new image src is assigned so the next photo starts fitted, centered.
+//
+// Unlike a CSS width:100%/object-fit approach, the image is never shrunk by
+// CSS — it keeps its full natural pixel size and ALL scaling (fit-to-view
+// and zoom) happens via the transform. That way zooming in samples the real
+// full-resolution source instead of stretching an already-downscaled raster.
 function createZoomPan(container, img) {
   let scale = 1, tx = 0, ty = 0;
+  let fitScale = 1, maxScale = 1;
   let dragging = false, startX = 0, startY = 0, tx0 = 0, ty0 = 0;
   let dragMoved = false;
 
@@ -1947,11 +1948,43 @@ function createZoomPan(container, img) {
     img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
   }
 
-  function reset() {
-    scale = 1; tx = 0; ty = 0;
+  // Computes the scale that fits the image's real pixel size inside the
+  // container, centers it, and sets that as the current zoom level. Also
+  // sets maxScale so zooming can reach at least native 1:1 pixel resolution
+  // (and a bit beyond), regardless of how small the fit scale is.
+  function computeFit() {
+    const naturalW = img.naturalWidth;
+    const naturalH = img.naturalHeight;
+    if (!naturalW || !naturalH) return;
+
+    img.style.width = naturalW + "px";
+    img.style.height = naturalH + "px";
+
+    const rect = container.getBoundingClientRect();
+    fitScale = Math.min(rect.width / naturalW, rect.height / naturalH);
+    maxScale = Math.max(fitScale * 8, 1);
+
+    scale = fitScale;
+    tx = (rect.width - naturalW * fitScale) / 2;
+    ty = (rect.height - naturalH * fitScale) / 2;
     img.style.transition = "none";
     apply();
   }
+
+  function reset() {
+    if (img.complete && img.naturalWidth) {
+      computeFit();
+    } else {
+      // Image hasn't loaded yet — the "load" listener below will call
+      // computeFit() once it has. Avoid a stale/huge unscaled flash in
+      // the meantime.
+      scale = 1; tx = 0; ty = 0;
+      img.style.transition = "none";
+      apply();
+    }
+  }
+
+  img.addEventListener("load", computeFit);
 
   container.addEventListener("wheel", function (e) {
     e.preventDefault();
@@ -1959,7 +1992,7 @@ function createZoomPan(container, img) {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const prevScale = scale;
-    scale = Math.min(6, Math.max(1, scale * (1 - e.deltaY * 0.0015)));
+    scale = Math.min(maxScale, Math.max(fitScale, scale * (1 - e.deltaY * 0.0015)));
     tx = mx - (mx - tx) * (scale / prevScale);
     ty = my - (my - ty) * (scale / prevScale);
     apply();
