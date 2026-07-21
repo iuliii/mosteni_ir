@@ -1944,14 +1944,19 @@ document.getElementById("tool-temperature").onclick = (e) => activateTemperature
 // and zoom) happens via the transform. That way zooming in samples the real
 // full-resolution source instead of stretching an already-downscaled raster.
 function createZoomPan(container, img) {
-  // scale=1 always means "at fit, no extra zoom" — the img's CSS box
-  // itself IS the fitted size (set in computeFit), so the browser does a
-  // proper high-quality decode-time downsample for the default view. Any
-  // scale > 1 here is an ADDITIONAL transform on top of that already-fitted
-  // box, scaling up toward native resolution rather than down from it —
-  // that keeps both the default view and zoomed-in view crisp.
+  // The <img> element is kept at its FULL natural pixel size at all times
+  // (never shrunk via CSS width/height). Both the initial "fit to view" AND
+  // any subsequent zooming are done through the SAME CSS transform scale.
+  // This matters because a two-step approach (shrink the img's CSS box to
+  // the fitted size, then apply an extra transform on top to zoom in) lets
+  // the browser rasterize/cache a low-resolution bitmap at the fitted size
+  // first — zooming in after that just magnifies that already-blurry
+  // bitmap, no matter how high the zoom ceiling is set. Doing it all as one
+  // continuous transform on the natural-size element means the browser
+  // always has the full-resolution source available to sample from at
+  // whatever the current on-screen size ends up being.
   let scale = 1, tx = 0, ty = 0;
-  let maxScale = 1;
+  let minScale = 1, maxScale = 1;
   let dragging = false, startX = 0, startY = 0, tx0 = 0, ty0 = 0;
   let dragMoved = false;
 
@@ -1959,34 +1964,35 @@ function createZoomPan(container, img) {
     img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
   }
 
-  // Sizes the img's real CSS box to fit inside the container (so the
-  // browser's own resize does the heavy downscaling, not a transform), then
-  // resets the zoom multiplier to 1. maxScale is set so zooming can reach
-  // at least true native 1:1 pixel resolution ON THIS SCREEN, regardless of
-  // how small the fit size is. On HiDPI/Retina displays, 1 CSS pixel maps
-  // to devicePixelRatio real screen pixels, so the naive "1 image px per
-  // CSS px" ceiling actually stops well short of native resolution and the
-  // zoomed-in view still looks soft. Folding devicePixelRatio into the
-  // ceiling lets users zoom all the way to true native detail.
+  // Locks the img's CSS box to its natural pixel dimensions (so it's never
+  // pre-downscaled by layout), then figures out the transform scale needed
+  // to fit it in the container — that becomes both the starting scale and
+  // the minimum (can't zoom out further than "fit"). The maximum scale is
+  // set so zooming can reach true native 1:1 physical-pixel resolution on
+  // THIS screen: since the img box is sized in natural-pixel CSS units, and
+  // 1 CSS pixel maps to devicePixelRatio physical pixels, "native detail"
+  // is reached at transform scale = 1/devicePixelRatio (not 1) — so the
+  // ceiling is whichever is larger, fitScale or 1/devicePixelRatio, in case
+  // the image is so small relative to the container that "fit" already
+  // exceeds native size.
   function computeFit() {
     const naturalW = img.naturalWidth;
     const naturalH = img.naturalHeight;
     if (!naturalW || !naturalH) return;
 
+    img.style.width = naturalW + "px";
+    img.style.height = naturalH + "px";
+
     const rect = container.getBoundingClientRect();
     const fitScale = Math.min(rect.width / naturalW, rect.height / naturalH);
-    const fittedW = naturalW * fitScale;
-    const fittedH = naturalH * fitScale;
-
-    img.style.width = fittedW + "px";
-    img.style.height = fittedH + "px";
-
-    scale = 1;
-    tx = (rect.width - fittedW) / 2;
-    ty = (rect.height - fittedH) / 2;
-
     const dpr = window.devicePixelRatio || 1;
-    maxScale = Math.max(1 / (fitScale * dpr), 1);
+
+    minScale = fitScale;
+    maxScale = Math.max(fitScale, 1 / dpr);
+
+    scale = fitScale;
+    tx = (rect.width - naturalW * scale) / 2;
+    ty = (rect.height - naturalH * scale) / 2;
 
     img.style.transition = "none";
     apply();
@@ -2013,7 +2019,7 @@ function createZoomPan(container, img) {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const prevScale = scale;
-    scale = Math.min(maxScale, Math.max(1, scale * (1 - e.deltaY * 0.0015)));
+    scale = Math.min(maxScale, Math.max(minScale, scale * (1 - e.deltaY * 0.0015)));
     tx = mx - (mx - tx) * (scale / prevScale);
     ty = my - (my - ty) * (scale / prevScale);
     apply();
