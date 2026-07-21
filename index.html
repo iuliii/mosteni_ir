@@ -1472,6 +1472,11 @@ function openEditor(feature) {
 
   editorOverlay.setPosition(getFeatureAnchor(feature));
   editorEl.classList.add("open");
+
+  requestAnimationFrame(() => {
+    editorPhotoZoomPanThermal.reset();
+    editorPhotoZoomPanWide.reset();
+  });
 }
 
 // Fills in the GPS text immediately, then fetches the real pixel value at
@@ -1984,7 +1989,7 @@ function createZoomPan(container, img) {
     }
   }
 
-  img.addEventListener("load", computeFit);
+  img.addEventListener("load", () => requestAnimationFrame(computeFit));
 
   container.addEventListener("wheel", function (e) {
     e.preventDefault();
@@ -2208,6 +2213,11 @@ function openPhotoModal(thermalResult, wideResult) {
   );
 
   backdrop.classList.add("open");
+
+  requestAnimationFrame(() => {
+    photoModalZoomPanThermal.reset();
+    photoModalZoomPanWide.reset();
+  });
 }
 
 function closePhotoModal() {
