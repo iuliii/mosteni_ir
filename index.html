@@ -459,6 +459,12 @@
     flex-direction:column;
     gap:6px;
     height:300px;
+    overflow: hidden; /* prevents image overflow */
+  .editor-photo-block img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* keeps aspect ratio, fits inside */
+  }
   }
   .editor-photo-label{
     font-size:10.5px;
