@@ -220,6 +220,17 @@
     align-items:center;
     gap:6px;
   }
+
+  /* Keep every row above the scrolling list at its natural height —
+     only #annotationsList should flex/shrink to fit available space. */
+  #annotationsPanel h3,
+  .severity-legend,
+  .sort-toggle-row,
+  #clearNamesBtn,
+  .ctrl-row{
+    flex:none;
+  }
+
   #annotationsTotalCount{
     background:var(--accent-bg);
     color:var(--accent);
@@ -234,7 +245,7 @@
     flex-direction:column;
     gap:2px;
     flex:1;
-    min-height:0;
+    min-height:120px;
   }
   #annotationsEmpty{
     font-size:12px;
