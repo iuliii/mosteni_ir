@@ -2283,7 +2283,7 @@ const photoIndexLoadPromises = {};
 function loadPhotoIndex(url) {
   if (photoIndexCache[url]) return Promise.resolve(photoIndexCache[url]);
   if (photoIndexLoadPromises[url]) return photoIndexLoadPromises[url];
-  photoIndexLoadPromises[url] = fetch(url)
+  photoIndexLoadPromises[url] = fetch(url, { cache: "no-store" })
     .then((res) => {
       if (!res.ok) throw new Error("failed to load " + url);
       return res.json();
