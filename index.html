@@ -1079,6 +1079,11 @@
     <span>Export</span>
   </button>
 
+  <button class="tool-btn" id="tool-export-zip" title="Download a ZIP with the nearest thermal photo of every point annotation + a .txt with GPS and temperature">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+    <span id="exportZipLabel">ZIP</span>
+  </button>
+
   <button class="tool-btn" id="tool-import" title="Import GeoJSON">
     <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg>
     <span>Import</span>
@@ -1314,6 +1319,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ol@v10.4.0/dist/ol.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <script>
 
@@ -2747,6 +2753,120 @@ document.getElementById("tool-export").onclick = function () {
   a.href = url;
   a.download = "annotations.geojson";
   a.click();
+};
+
+// ==========================
+// EXPORT ZIP: nearest thermal photo + GPS + temperature for every point
+// ==========================
+document.getElementById("tool-export-zip").onclick = async function () {
+  const btn = this;
+  const label = document.getElementById("exportZipLabel");
+  if (btn.dataset.busy === "1") return;
+  if (typeof JSZip === "undefined") {
+    alert("The ZIP library didn't load (check your connection) - reload the page and try again.");
+    return;
+  }
+
+  const points = vectorSource.getFeatures().filter(
+    (f) => f.getGeometry() && f.getGeometry().getType() === "Point"
+  );
+  if (points.length === 0) {
+    alert("There are no point annotations to export.");
+    return;
+  }
+
+  btn.dataset.busy = "1";
+  const setLabel = (t) => { label.textContent = t; };
+  // Runs fn over items with limited concurrency.
+  const pool = async (items, limit, fn) => {
+    let i = 0;
+    const worker = async () => { while (i < items.length) { const k = i++; await fn(items[k], k); } };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  };
+
+  try {
+    setLabel("Indexing...");
+    const thermalIndex = await loadPhotoIndex(PHOTOS_INDEX_URL);
+
+    // 1) Per annotation: GPS, nearest photo, temperature
+    const rows = points.map((f) => {
+      const [lon, lat] = ol.proj.toLonLat(f.getGeometry().getCoordinates());
+      const near = findNearestPhoto(lon, lat, thermalIndex);
+      return { f, lon, lat, near, temp: null };
+    });
+    let done = 0;
+    await pool(rows, 8, async (r) => {
+      try {
+        const res = await fetch(`${TITILER_BASE}/cog/point/${r.lon},${r.lat}?url=${encodeURIComponent(COG_URL)}`);
+        if (res.ok) {
+          const d = await res.json();
+          const v = d.values && d.values[0];
+          if (v !== null && v !== undefined) r.temp = v;
+        }
+      } catch (e) {}
+      setLabel("Temp " + (++done) + "/" + rows.length);
+    });
+
+    // 2) Unique photos -> zip names
+    const zip = new JSZip();
+    const photoFolder = zip.folder("photos");
+    const zipNameByPath = {};
+    const usedNames = {};
+    const unique = [];
+    rows.forEach((r) => {
+      if (!r.near || !r.near.photo) return;
+      const p = r.near.photo;
+      if (zipNameByPath[p.path]) return;
+      let name = p.file;
+      if (usedNames[name]) name = p.batch + "_" + p.file;
+      usedNames[name] = true;
+      zipNameByPath[p.path] = name;
+      unique.push(p);
+    });
+
+    const failed = {};
+    done = 0;
+    await pool(unique, 6, async (p) => {
+      try {
+        const res = await fetch(`${PHOTOS_BASE}/${p.path.split("/").map(encodeURIComponent).join("/")}`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        photoFolder.file(zipNameByPath[p.path], await res.blob(), { compression: "STORE" });
+      } catch (e) {
+        failed[p.path] = true;
+      }
+      setLabel("Photos " + (++done) + "/" + unique.length);
+    });
+
+    // 3) The .txt report: one line per annotation
+    const sevName = { low: "Low", medium: "Medium", high: "High" };
+    const lines = rows.map((r) => {
+      const p = r.near && r.near.photo;
+      const file = p ? zipNameByPath[p.path] + (failed[p.path] ? " (DOWNLOAD FAILED)" : "") : "no photo";
+      const sev = r.f.get("severity");
+      return file +
+        "  |  GPS: " + r.lat.toFixed(6) + ", " + r.lon.toFixed(6) +
+        "  |  Temp: " + (r.temp === null ? "n/a" : r.temp.toFixed(1) + " C") +
+        "  |  Severity: " + (sev ? (sevName[sev] || sev) : "none");
+    });
+    zip.file("annotations.txt", lines.join("\r\n"));
+
+    // 4) Build & download
+    setLabel("Zipping...");
+    const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (m) => setLabel("Zip " + Math.round(m.percent) + "%"));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "annotations_export.zip";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    if (Object.keys(failed).length) alert(Object.keys(failed).length + " photo(s) failed to download; they're marked in annotations.txt.");
+  } catch (err) {
+    alert("ZIP export failed: " + err.message);
+  } finally {
+    btn.dataset.busy = "0";
+    setLabel("ZIP");
+  }
 };
 
 document.getElementById("tool-import").onclick = function () {
