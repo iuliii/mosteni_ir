@@ -3095,7 +3095,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
       statusEl.textContent = tempsLoading ? statusEl.textContent : total + " point annotations. Type coords, temperature, filename, row or severity.";
       return;
     }
-    const res = search(q);
     render(res, tokens);
 
     // Also match photo filenames straight from the thermal index
