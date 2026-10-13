@@ -1373,18 +1373,18 @@
 // value falls into. We interpolate `steps` buckets evenly across
 // [vmin, vmax], and interpolate the color for each bucket across the given
 // hex color stops (piecewise-linear, like a CSS gradient).
-const VMIN = 24.8864479;
-const VMAX = 95;
+const VMIN = 5;
+const VMAX = 58;
 
 // Exact control points exported from QGIS (value, r, g, b) — copied directly
 // from the .clr file so the web render matches QGIS's own interpolated
 // color ramp instead of approximating it with even percentage stops.
 const QGIS_CONTROL_POINTS = [
-  [24.8864479,         0,   0,   0],
-  [40.30806391149920,  121, 28,  104],
-  [57.16227777295673,  255, 149, 0],
-  [94.74717053112738,  253, 255, 0],
-  [95.0,               188, 220, 60]
+  [5,    0,   0,   0],
+  [18,   121, 28,  104],
+  [32,   255, 149, 0],
+  [57,   253, 255, 0],
+  [58,   188, 220, 60]
 ];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
