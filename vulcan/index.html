@@ -488,11 +488,11 @@
     gap:6px;
     height:300px;
     overflow: hidden; /* prevents image overflow */
+    }
   .editor-photo-block img {
     width: 100%;
     height: 100%;
     object-fit: contain; /* keeps aspect ratio, fits inside */
-  }
   }
   .editor-photo-label{
     font-size:10.5px;
@@ -1384,8 +1384,8 @@ const QGIS_CONTROL_POINTS = [
   [5,    0,   0,   0],
   [14,   121, 28,  104],
   [32,   240, 110, 20],
-  [45,   255, 149, 0],
-  [49.5, 235, 190, 70] 
+    [45,   255, 149, 0],
+  [49.5, 235, 190, 70],
   [50,   188, 220, 60]
 ];
 
@@ -1851,9 +1851,9 @@ function hidePlacementHint() {
 function beginAddPerpendicular(feature) {
   const shape = feature.get("shape");
   if (shape !== "Row" && shape !== "Column") return;
+  clearInteractions();
   pendingPerpendicular = { feature, newShape: shape === "Row" ? "Column" : "Row" };
   closeEditor();
-  clearInteractions();
   map.getTargetElement().style.cursor = "crosshair";
   showPlacementHint(
     shape === "Row" ? "Click along the row to place a column" : "Click along the column to place a row"
@@ -2603,6 +2603,11 @@ function setActiveButton(btn) {
 }
 
 function clearInteractions() {
+  if (pendingPerpendicular) {
+    pendingPerpendicular = null;
+    map.getTargetElement().style.cursor = "";
+    hidePlacementHint();
+  }
   if (drawInteraction) {
     map.removeInteraction(drawInteraction);
     drawInteraction = null;
