@@ -1385,7 +1385,7 @@ const QGIS_CONTROL_POINTS = [
   [14,   121, 28,  104],
   [32,   240, 110, 20],
   [45,   255, 149, 0],
-  [49.5, 253, 255, 0],
+  [49.5, 235, 190, 70] 
   [50,   188, 220, 60]
 ];
 
@@ -3084,49 +3084,50 @@ document.getElementById("tool-export-zip").onclick = async function () {
     els[selIndex].scrollIntoView({ block: "nearest" });
   }
 
-   function runSearch() {
-    const q = input.value.trim();
-    const pq = parseQuery(q);
-    const tokens = pq.tokens;
-    if (!tokens.length && pq.row === null && pq.col === null) {
-      resultsEl.innerHTML = "";
-      currentResults = [];
-      const total = getItems().length;
-      statusEl.textContent = tempsLoading ? statusEl.textContent : total + " point annotations. Type coords, temperature, filename, row or severity.";
-      return;
+ function runSearch() {
+  const q = input.value.trim();
+  const pq = parseQuery(q);
+  const tokens = pq.tokens;
+
+  if (!tokens.length && pq.row === null && pq.col === null) {
+    resultsEl.innerHTML = "";
+    currentResults = [];
+    const total = getItems().length;
+    if (!tempsLoading) {
+      statusEl.textContent = total + " point annotations. Type coords, temperature, filename, row or severity.";
     }
-    render(res, tokens);
-
-    // Also match photo filenames straight from the thermal index
-    const photos = (pq.row === null && pq.col === null && thermalIdx)
-      ? thermalIdx.filter((p) => tokens.every((t) => p.file.toLowerCase().includes(t))).slice(0, 50)
-      : [];
-    photos.forEach((p) => {
-      const el = document.createElement("div");
-      el.className = "sr-item";
-      el.innerHTML =
-        '<div class="sr-top"><span>\ud83d\udcf7 Photo</span></div>' +
-        '<div class="sr-sub">' + hl(p.file, tokens) + "</div>" +
-        '<div class="sr-sub">' + p.lat.toFixed(6) + ", " + p.lon.toFixed(6) + "</div>";
-      el.onclick = async () => {
-        map.getView().animate({ center: ol.proj.fromLonLat([p.lon, p.lat]), zoom: 20, duration: 350 });
-        const wideIndex = await loadPhotoIndex(PHOTOS_INDEX_URL_WIDE).catch(() => []);
-        openPhotoModal({ photo: p, distance: 0 }, findNearestPhoto(p.lon, p.lat, wideIndex));
-      };
-      resultsEl.appendChild(el);
-    });
-
-    statusEl.textContent = (res.length + photos.length)
-      ? res.length + " annotation(s), " + photos.length + " photo(s)" + (tempsLoading ? " - temperatures still loading" : "")
-      : "No match" + (tempsLoading ? " yet - temperatures still loading" : "");
-  }
-    const res = search(q);
-    render(res, tokens);
-    statusEl.textContent = res.length
-      ? res.length + " match" + (res.length === 1 ? "" : "es") + (res.length > 50 ? " (showing 50)" : "") + (tempsLoading ? " - temperatures still loading" : "")
-      : "No match" + (tempsLoading ? " yet - temperatures still loading" : "");
+    return;
   }
 
+  // Annotations (matches name, row/col, severity, coords, temp, nearest photo filename)
+  const res = search(q);
+  render(res, tokens);
+
+  // Photo filenames straight from the thermal index
+  const photos = (pq.row === null && pq.col === null && thermalIdx)
+    ? thermalIdx.filter((p) => tokens.every((t) => p.file.toLowerCase().includes(t))).slice(0, 50)
+    : [];
+
+  photos.forEach((p) => {
+    const el = document.createElement("div");
+    el.className = "sr-item";
+    el.innerHTML =
+      '<div class="sr-top"><span>\ud83d\udcf7 Photo</span></div>' +
+      '<div class="sr-sub">' + hl(p.file, tokens) + "</div>" +
+      '<div class="sr-sub">' + p.lat.toFixed(6) + ", " + p.lon.toFixed(6) + "</div>";
+    el.onclick = async () => {
+      map.getView().animate({ center: ol.proj.fromLonLat([p.lon, p.lat]), zoom: 20, duration: 350 });
+      const wideIndex = await loadPhotoIndex(PHOTOS_INDEX_URL_WIDE).catch(() => []);
+      openPhotoModal({ photo: p, distance: 0 }, findNearestPhoto(p.lon, p.lat, wideIndex));
+    };
+    resultsEl.appendChild(el);
+  });
+
+  const loadingNote = tempsLoading ? " - temperatures still loading" : "";
+  statusEl.textContent = (res.length + photos.length)
+    ? res.length + " annotation(s), " + photos.length + " photo(s)" + loadingNote
+    : "No match" + (tempsLoading ? " yet" : "") + loadingNote;
+}
   async function openPanel() {
     panel.classList.add("open");
     btn.classList.add("active");
