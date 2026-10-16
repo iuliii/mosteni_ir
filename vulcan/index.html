@@ -1,4 +1,1893 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Panel Inspector</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        /* ── Sidebar ── */
+        #sidebar {
+            width: 320px;
+            min-width: 320px;
+            background: #16213e;
+            border-right: 2px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        #sidebar-header {
+            padding: 16px 20px;
+            background: #0f3460;
+            border-bottom: 2px solid #533483;
+        }
+
+        #sidebar-header h2 {
+            font-size: 18px;
+            color: #e94560;
+            margin-bottom: 4px;
+        }
+
+        #sidebar-header p {
+            font-size: 12px;
+            color: #8899aa;
+        }
+
+        /* ── Tabs ── */
+        .tab-bar {
+            display: flex;
+            background: #1a1a3e;
+            border-bottom: 2px solid #0f3460;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 8px;
+            background: none;
+            border: none;
+            color: #667;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: #aab;
+            background: rgba(233, 69, 96, 0.05);
+        }
+
+        .tab-btn.active {
+            color: #e94560;
+            border-bottom-color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 16px 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* ── Form controls ── */
+        .control-group {
+            background: #1a1a3e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #e94560;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group input[type="number"] {
+            width: 100%;
+            padding: 8px 12px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .control-group input[type="number"]:focus {
+            border-color: #e94560;
+            box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+        }
+
+        .row-inputs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .row-inputs .control-half {
+            flex: 1;
+        }
+
+        .row-inputs .control-half label {
+            font-size: 11px;
+            margin-bottom: 6px;
+        }
+
+        .row-inputs .control-half input {
+            width: 100%;
+            padding: 8px 10px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #c73652;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3);
+        }
+
+        .btn-primary:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: #0f3460;
+            color: #8899aa;
+        }
+
+        .btn-secondary:hover {
+            background: #1a4a7a;
+            color: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #6b1a1a;
+            color: #ff8888;
+        }
+
+        .btn-danger:hover {
+            background: #8b2a2a;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-row .btn {
+            flex: 1;
+        }
+
+        /* ── Status ── */
+        .status-box {
+            background: #1a1a3e;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .status-box .status-title {
+            font-weight: 600;
+            color: #e94560;
+            margin-bottom: 6px;
+        }
+
+        .status-box .status-line {
+            color: #8899aa;
+        }
+
+        .status-box .status-line span {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        /* ── Grid list ── */
+        .grid-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .grid-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .grid-item:hover {
+            border-color: #e94560;
+        }
+
+        .grid-item .grid-info {
+            color: #ccc;
+        }
+
+        .grid-item .grid-info strong {
+            color: #e94560;
+        }
+
+        .grid-item .grid-actions button {
+            background: none;
+            border: none;
+            color: #e94560;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 2px 6px;
+        }
+
+        .grid-item .grid-actions button:hover {
+            color: #ff6b81;
+        }
+
+        /* ── Map ── */
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ── Drawing cursor ── */
+        .drawing-active {
+            cursor: crosshair !important;
+        }
+
+        /* ── Corner markers ── */
+        .corner-marker {
+            width: 14px;
+            height: 14px;
+            background: #e94560;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+            transition: transform 0.15s;
+        }
+
+        .corner-marker:hover {
+            transform: scale(1.4);
+        }
+
+        .corner-marker.start-point {
+            background: #00ff88;
+            width: 18px;
+            height: 18px;
+            border: 3px solid #fff;
+        }
+
+        /* ── Tooltip on map ── */
+        .draw-tooltip {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 52, 96, 0.95);
+            color: #e0e0e0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            pointer-events: none;
+            z-index: 999;
+            border: 1px solid #e94560;
+            white-space: nowrap;
+        }
+
+        /* ── Leaflet popup override ── */
+        .panel-popup .leaflet-popup-content-wrapper {
+            background: #16213e;
+            color: #e0e0e0;
+            border: 1px solid #e94560;
+            border-radius: 8px;
+        }
+
+        .panel-popup .leaflet-popup-tip {
+            background: #16213e;
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #16213e; }
+        ::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #e94560; }
+
+        /* ── Thermal slider ── */
+        .thermal-control {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(22, 33, 62, 0.95);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 999;
+            border: 1px solid #0f3460;
+        }
+
+        .thermal-control label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e94560;
+        }
+
+        .thermal-control input[type="range"] {
+            width: 200px;
+            accent-color: #e94560;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════ SIDEBAR ═══════════ -->
+<div id="sidebar">
+    <div id="sidebar-header">
+        <h2>🔆 Solar Inspector</h2>
+        <p>Draw grids over panel strings</p>
+    </div>
+
+    <div class="tab-bar">
+        <button class="tab-btn active" data-tab="draw">✏️ Draw</button>
+        <button class="tab-btn" data-tab="grids">📋 Grids</button>
+        <button class="tab-btn" data-tab="layers">🗂 Layers</button>
+    </div>
+
+    <!-- ── Draw Tab ── -->
+    <div class="tab-content active" id="tab-draw">
+        <div class="control-group">
+            <label>Grid Dimensions</label>
+            <div class="row-inputs">
+                <div class="control-half">
+                    <label>Rows</label>
+                    <input type="number" id="input-rows" value="2" min="1" max="50" />
+                </div>
+                <div class="control-half">
+                    <label>Columns</label>
+                    <input type="number" id="input-cols" value="19" min="1" max="100" />
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label>String Label (optional)</label>
+            <input type="text" id="input-label" placeholder="e.g. Zona A, String 1"
+                   style="width:100%;padding:8px 12px;background:#16213e;border:1px solid #0f3460;
+                          border-radius:6px;color:#e0e0e0;font-size:14px;outline:none;" />
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btn-start-draw">✏️ Start Drawing</button>
+            <button class="btn btn-danger" id="btn-cancel-draw" style="display:none;">✖ Cancel</button>
+        </div>
+
+        <div class="status-box" id="draw-status">
+            <div class="status-title">How it works</div>
+            <div class="status-line">1. Set rows & columns above</div>
+            <div class="status-line">2. Click <strong>Start Drawing</strong></div>
+            <div class="status-line">3. Click 4 corners on the map</div>
+            <div class="status-line">4. Click the <span style="color:#00ff88;">green start point</span> to close</div>
+            <div class="status-line">5. Grid auto-subdivides 🎉</div>
+        </div>
+    </div>
+
+    <!-- ── Grids Tab ── -->
+    <div class="tab-content" id="tab-grids">
+        <div class="control-group">
+            <label>Saved Grids</label>
+            <div class="grid-list" id="grid-list">
+                <div style="color:#556;font-size:12px;text-align:center;padding:20px;">
+                    No grids drawn yet
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-danger" id="btn-clear-all" style="width:100%;">🗑 Clear All Grids</button>
+    </div>
+
+    <!-- ── Layers Tab ── -->
+    <div class="tab-content" id="tab-layers">
+        <div class="control-group">
+            <label>Overlay Opacity</label>
+            <input type="range" id="overlay-opacity" min="0" max="100" value="100"
+                   style="width:100%;accent-color:#e94560;" />
+        </div>
+
+        <div class="control-group">
+            <label>Grid Line Color</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;" id="color-picker">
+                <span class="color-swatch" data-color="#00ff88"
+                      style="width:28px;height:28px;border-radius:6px;background:#00ff88;cursor:pointer;border:2px solid transparent;"></span>
+                <span class="color-swatch" data-color="#e94560"
+                      style="width:28px;height:28px;border-radius:6px;background:#e94560;cursor:pointer;border:2px solid #fff;"></span>
+                <span class="color-swatch" data-color="#00bfff"
+                      style="width:28px;height:28px;border-radius:6px;background:#00bfff;cursor:pointer;border:2px solid transparent;"></span>
+                <span class="color-swatch" data-color="#ffff00"
+                      style="width:28px;height:28px;border-radius:6px;background:#ffff00;cursor:pointer;border:2px solid transparent;"></span>
+                <span class="color-swatch" data-color="#ffffff"
+                      style="width:28px;height:28px;border-radius:6px;background:#ffffff;cursor:pointer;border:2px solid transparent;"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════ MAP ═══════════ -->
+<div id="map-container">
+    <div id="map"></div>
+    <div class="draw-tooltip" id="draw-tooltip" style="display:none;"></div>
+</div>
+
+<!-- ═══════════ SCRIPTS ═══════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ══════════════════════════════════════════
+// CONFIG — change these to match your setup
+// ══════════════════════════════════════════
+const TILE_URL = '/tiles/{z}/{x}/{y}.png';  // Your tile endpoint
+const MAP_CENTER = [44.5, 26.1];            // Adjust to your site
+const MAP_ZOOM = 18;                        // Starting zoom
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let map;
+let drawingActive = false;
+let cornerPoints = [];        // [{lat, lng}, ...]
+let cornerMarkers = [];       // Leaflet markers
+let previewLine = null;       // Polyline while drawing
+let mouseLatLng = null;
+let grids = [];               // All completed grids
+let gridColor = '#e94560';
+let gridIdCounter = 0;
+
+// ══════════════════════════════════════════
+// INIT MAP
+// ══════════════════════════════════════════
+function initMap() {
+    map = L.map('map', {
+        center: MAP_CENTER,
+        zoom: MAP_ZOOM,
+        zoomControl: false
+    });
+
+    // Base tile layer — swap this for your orthophoto tiles
+    L.tileLayer(TILE_URL, {
+        maxZoom: 24,
+        maxNativeZoom: 22,
+        tileSize: 256,
+    }).addTo(map);
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Track mouse for preview line
+    map.on('mousemove', onMouseMove);
+    map.on('click', onMapClick);
+}
+
+// ══════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+});
+
+// ══════════════════════════════════════════
+// DRAWING
+// ══════════════════════════════════════════
+const btnStart = document.getElementById('btn-start-draw');
+const btnCancel = document.getElementById('btn-cancel-draw');
+const tooltip = document.getElementById('draw-tooltip');
+const statusBox = document.getElementById('draw-status');
+
+btnStart.addEventListener('click', startDrawing);
+btnCancel.addEventListener('click', cancelDrawing);
+
+function startDrawing() {
+    drawingActive = true;
+    cornerPoints = [];
+    clearCornerMarkers();
+
+    btnStart.style.display = 'none';
+    btnCancel.style.display = 'block';
+
+    map.getContainer().classList.add('drawing-active');
+    showTooltip('Click to place corner 1 of 4');
+    updateStatus('Drawing mode active — click 4 corners on the map');
+}
+
+function cancelDrawing() {
+    drawingActive = false;
+    cornerPoints = [];
+    clearCornerMarkers();
+    removePreviewLine();
+
+    btnStart.style.display = 'block';
+    btnCancel.style.display = 'none';
+
+    map.getContainer().classList.remove('drawing-active');
+    hideTooltip();
+    updateStatus('Drawing cancelled');
+}
+
+function finishDrawing() {
+    drawingActive = false;
+
+    btnStart.style.display = 'block';
+    btnCancel.style.display = 'none';
+
+    map.getContainer().classList.remove('drawing-active');
+    removePreviewLine();
+    hideTooltip();
+
+    // Read inputs
+    const rows = parseInt(document.getElementById('input-rows').value) || 2;
+    const cols = parseInt(document.getElementById('input-cols').value) || 19;
+    const label = document.getElementById('input-label').value.trim() || `Grid ${gridIdCounter + 1}`;
+
+    // Create the subdivided grid
+    const gridData = createGrid(cornerPoints, rows, cols, label);
+    grids.push(gridData);
+
+    // Clean up corner markers
+    clearCornerMarkers();
+
+    updateStatus(`✅ "${label}" created — ${rows}×${cols} = ${rows * cols} panels`);
+    refreshGridList();
+}
+
+function onMapClick(e) {
+    if (!drawingActive) return;
+
+    const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
+
+    // Check if clicking the start point to close (need exactly 4 corners)
+    if (cornerPoints.length === 4) {
+        // Check proximity to first point
+        const startPx = map.latLngToContainerPoint(L.latLng(cornerPoints[0].lat, cornerPoints[0].lng));
+        const clickPx = map.latLngToContainerPoint(e.latlng);
+        const dist = startPx.distanceTo(clickPx);
+
+        if (dist < 20) {
+            finishDrawing();
+            return;
+        }
+        // If not near start, ignore (already have 4 corners)
+        showTooltip('Click the green start point to close the shape');
+        return;
+    }
+
+    cornerPoints.push(pt);
+
+    // Add marker
+    const isStart = cornerPoints.length === 1;
+    const marker = L.marker([pt.lat, pt.lng], {
+        icon: L.divIcon({
+            className: isStart ? 'corner-marker start-point' : 'corner-marker',
+            iconSize: isStart ? [18, 18] : [14, 14],
+            iconAnchor: isStart ? [9, 9] : [7, 7],
+        }),
+        interactive: cornerPoints.length === 4 ? false : true
+    }).addTo(map);
+
+    // If this completes 4 corners, make start marker clickable to close
+    cornerMarkers.push(marker);
+
+    if (cornerPoints.length === 4) {
+        // Re-add start marker as clickable to close
+        cornerMarkers[0].on('click', function (ev) {
+            L.DomEvent.stopPropagation(ev);
+            finishDrawing();
+        });
+        showTooltip('Click the green start point to close');
+    } else {
+        showTooltip(`Click to place corner ${cornerPoints.length + 1} of 4`);
+    }
+}
+
+function onMouseMove(e) {
+    mouseLatLng = e.latlng;
+    if (!drawingActive || cornerPoints.length === 0) return;
+
+    // Draw preview polyline
+    const pts = cornerPoints.map(p => [p.lat, p.lng]);
+    pts.push([e.latlng.lat, e.latlng.lng]);
+
+    if (previewLine) {
+        previewLine.setLatLngs(pts);
+    } else {
+        previewLine = L.polyline(pts, {
+            color: '#e94560',
+            weight: 2,
+            dashArray: '8,6',
+            opacity: 0.8
+        }).addTo(map);
+    }
+}
+
+function clearCornerMarkers() {
+    cornerMarkers.forEach(m => map.removeLayer(m));
+    cornerMarkers = [];
+}
+
+function removePreviewLine() {
+    if (previewLine) {
+        map.removeLayer(previewLine);
+        previewLine = null;
+    }
+}
+
+function showTooltip(text) {
+    tooltip.textContent = text;
+    tooltip.style.display = 'block';
+}
+
+function hideTooltip() {
+    tooltip.style.display = 'none';
+}
+
+function updateStatus(msg) {
+    statusBox.innerHTML = `<div class="status-line">${msg}</div>`;
+}
+
+// ══════════════════════════════════════════
+// GRID CREATION (the magic part)
+// ══════════════════════════════════════════
+function createGrid(corners, rows, cols, label) {
+    /*
+        corners = 4 points clicked by user, defining a quadrilateral.
+        We use bilinear interpolation to subdivide into rows × cols cells.
+
+        Corner ordering:
+        [0] ── [1]
+         |       |
+        [3] ── [2]
+
+        We'll sort them to this layout automatically.
+    */
+    const id = ++gridIdCounter;
+    const ordered = orderCorners(corners);
+    const layerGroup = L.layerGroup().addTo(map);
+
+    const c0 = ordered[0]; // top-left
+    const c1 = ordered[1]; // top-right
+    const c2 = ordered[2]; // bottom-right
+    const c3 = ordered[3]; // bottom-left
+
+    // Bilinear interpolation for point at (u, v) where u,v ∈ [0,1]
+    function interp(u, v) {
+        const lat = (1 - u) * (1 - v) * c0.lat
+                  + u * (1 - v) * c1.lat
+                  + u * v * c2.lat
+                  + (1 - u) * v * c3.lat;
+        const lng = (1 - u) * (1 - v) * c0.lng
+                  + u * (1 - v) * c1.lng
+                  + u * v * c2.lng
+                  + (1 - u) * v * c3.lng;
+        return [lat, lng];
+    }
+
+    // Draw outer boundary
+    L.polygon([
+        [c0.lat, c0.lng], [c1.lat, c1.lng],
+        [c2.lat, c2.lng], [c3.lat, c3.lng]
+    ], {
+        color: gridColor,
+        weight: 2.5,
+        fillColor: gridColor,
+        fillOpacity: 0.04,
+        interactive: false
+    }).addTo(layerGroup);
+
+    // Draw subdivided cells
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const u0 = c / cols;
+            const u1 = (c + 1) / cols;
+            const v0 = r / rows;
+            const v1 = (r + 1) / rows;
+
+            const tl = interp(u0, v0);
+            const tr = interp(u1, v0);
+            const br = interp(u1, v1);
+            const bl = interp(u0, v1);
+
+            const cell = L.polygon([tl, tr, br, bl], {
+                color: gridColor,
+                weight: 1,
+                fillColor: 'transparent',
+                fillOpacity: 0,
+                opacity: 0.7
+            }).addTo(layerGroup);
+
+            // Click to show panel info
+            const panelNum = r * cols + c + 1;
+            cell.bindPopup(
+                `<div style="font-family:'Segoe UI',sans-serif;">
+                    <strong style="color:#e94560;">${label}</strong><br>
+                    Row ${r + 1}, Col ${c + 1}<br>
+                    Panel #${panelNum}
+                </div>`,
+                { className: 'panel-popup' }
+            );
+
+            // Hover highlight
+            cell.on('mouseover', function () {
+                this.setStyle({ fillColor: gridColor, fillOpacity: 0.2 });
+            });
+            cell.on('mouseout', function () {
+                this.setStyle({ fillColor: 'transparent', fillOpacity: 0 });
+            });
+        }
+    }
+
+    return { id, label, rows, cols, corners: ordered, layerGroup };
+}
+
+/**
+ * Order 4 arbitrary corners into: top-left, top-right, bottom-right, bottom-left
+ */
+function orderCorners(pts) {
+    // Find centroid
+    const cx = pts.reduce((s, p) => s + p.lng, 0) / 4;
+    const cy = pts.reduce((s, p) => s + p.lat, 0) / 4;
+
+    // Compute angle from centroid and sort clockwise
+    const withAngle = pts.map(p => ({
+        ...p,
+        angle: Math.atan2(p.lat - cy, p.lng - cx)
+    }));
+
+    withAngle.sort((a, b) => a.angle - b.angle);
+
+    // After sorting by angle, we get CCW order. Rearrange:
+    // Find the top-left (highest lat, lowest lng)
+    // Simple approach: sort so that [0] is top-left
+    const sorted = withAngle.map(p => ({ lat: p.lat, lng: p.lng }));
+
+    // Identify top two (higher lat) and bottom two
+    const byLat = [...sorted].sort((a, b) => b.lat - a.lat);
+    const top = byLat.slice(0, 2).sort((a, b) => a.lng - b.lng);   // left first
+    const bot = byLat.slice(2, 4).sort((a, b) => a.lng - b.lng);   // left first
+
+    return [
+        top[0],  // top-left
+        top[1],  // top-right
+        bot[1],  // bottom-right
+        bot[0],  // bottom-left
+    ];
+}
+
+// ══════════════════════════════════════════
+// GRID LIST MANAGEMENT
+// ══════════════════════════════════════════
+function refreshGridList() {
+    const list = document.getElementById('grid-list');
+    if (grids.length === 0) {
+        list.innerHTML = '<div style="color:#556;font-size:12px;text-align:center;padding:20px;">No grids drawn yet</div>';
+        return;
+    }
+
+    list.innerHTML = grids.map(g => `
+        <div class="grid-item" data-id="${g.id}">
+            <div class="grid-info">
+                <strong>${g.label}</strong><br>
+                ${g.rows}×${g.cols} = ${g.rows * g.cols} panels
+            </div>
+            <div class="grid-actions">
+                <button onclick="zoomToGrid(${g.id})" title="Zoom to">🔍</button>
+                <button onclick="toggleGrid(${g.id})" title="Toggle visibility">👁</button>
+                <button onclick="deleteGrid(${g.id})" title="Delete">🗑</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function zoomToGrid(id) {
+    const g = grids.find(g => g.id === id);
+    if (!g) return;
+    const bounds = L.latLngBounds(g.corners.map(c => [c.lat, c.lng]));
+    map.fitBounds(bounds, { padding: [50, 50] });
+}
+
+function toggleGrid(id) {
+    const g = grids.find(g => g.id === id);
+    if (!g) return;
+    if (map.hasLayer(g.layerGroup)) {
+        map.removeLayer(g.layerGroup);
+    } else {
+        g.layerGroup.addTo(map);
+    }
+}
+
+function deleteGrid(id) {
+    const idx = grids.findIndex(g => g.id === id);
+    if (idx === -1) return;
+    map.removeLayer(grids[idx].layerGroup);
+    grids.splice(idx, 1);
+    refreshGridList();
+}
+
+document.getElementById('btn-clear-all').addEventListener('click', () => {
+    grids.forEach(g => map.removeLayer(g.layerGroup));
+    grids = [];
+    gridIdCounter = 0;
+    refreshGridList();
+});
+
+// ══════════════════════════════════════════
+// LAYERS TAB
+// ══════════════════════════════════════════
+document.getElementById('overlay-opacity').addEventListener('input', function () {
+    // If you have an overlay layer, set its opacity here
+    // overlayLayer.setOpacity(this.value / 100);
+});
+
+document.querySelectorAll('.color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', function () {
+        document.querySelectorAll('.color-swatch').forEach(s => s.style.borderColor = 'transparent');
+        this.style.borderColor = '#fff';
+        gridColor = this.dataset.color;
+    });
+});
+
+// ══════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════
+initMap();
+</script>
+</body>
+</html>
+What this does
+Feature	Details
+Draw tab	Set rows/cols (e.g. 2×19), optional label, click "Start Drawing"
+4-corner click	Click 4 points on the orthophoto forming a quadrilateral
+Close shape	Click the green start dot to finish
+Auto-subdivide	Bilinear interpolation splits the quad into N×M cells
+Hover/click	Hover highlights cells, click shows panel ID popup
+Grids tab	Lists all grids with zoom/toggle/delete
+Color picker	Change grid line color in Layers tab
+What to adjust
+TILE_URL — point to your actual tile server endpoint
+MAP_CENTER and MAP_ZOOM — set to your solar farm coordinates
+If you have a thermal/RGB toggle, add a second tile layer and swap between them
+
+Caching metrics
+user avatar
+<!DOCTYPE html> <html>
+
+<head> <meta charset="utf-8"> <title>Vulcan - DJI Thermal Viewer</title> <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css">
+
+<style> :root{ --accent:#4f46e5; --accent-bg:#eef2ff; --ink:#1f2430; --muted:#6b7280; --border:#e5e7eb; --panel-shadow:0 8px 24px rgba(15,23,42,.14); }
+
+html,body,#map{ margin:0; width:100%; height:100%; overflow:hidden; font-family:-apple-system,"Segoe UI",Arial,sans-serif; }
+
+/* ============ TOP TOOLBAR ============ */ #toolbar{ position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; align-items:center; gap:2px; background:#ffffff; border-radius:16px; box-shadow:var(--panel-shadow); padding:6px 8px; }
+
+.tool-btn{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:56px; padding:6px 2px 7px; border:none; background:transparent; border-radius:12px; cursor:pointer; color:var(--ink); font-size:11px; line-height:1; user-select:none; transition:background .12s ease; } .tool-btn:hover{ background:#f3f4f6; } .tool-btn svg{ width:20px; height:20px; stroke:var(--ink); fill:none; } .tool-btn.active{ background:var(--accent-bg); color:var(--accent); } .tool-btn.active svg{ stroke:var(--accent); }
+
+/* ============ SEARCH PANEL ============ */ #searchPanel{ position:absolute; top:88px; left:50%; transform:translateX(-50%); z-index:1001; width:min(440px, calc(100vw - 24px)); background:#fff; border-radius:14px; box-shadow:var(--panel-shadow); padding:10px; display:none; font-size:13px; color:var(--ink); } #searchPanel.open{ display:block; } #searchInput{ width:100%; box-sizing:border-box; padding:10px 12px; font-size:14px; border:1px solid var(--border); border-radius:10px; outline:none; color:var(--ink); } #searchInput:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); } #searchStatus{ margin:6px 2px 0; font-size:11.5px; color:var(--muted); min-height:14px; } #searchResults{ margin-top:6px; max-height:46vh; overflow-y:auto; } .sr-item{ padding:8px 10px; border-radius:10px; cursor:pointer; line-height:1.45; border:1px solid transparent; } .sr-item:hover, .sr-item.sel{ background:var(--accent-bg); border-color:#c7d2fe; } .sr-top{ display:flex; justify-content:space-between; gap:8px; font-weight:600; } .sr-sev{ font-size:11px; font-weight:600; padding:1px 8px; border-radius:99px; background:#f3f4f6; color:var(--muted); } .sr-sev.high{ background:#fee2e2; color:#b91c1c; } .sr-sev.medium{ background:#fef3c7; color:#92400e; } .sr-sev.low{ background:#dcfce7; color:#166534; } .sr-sub{ color:var(--muted); font-size:12px; font-family:ui-monospace,Menlo,Consolas,monospace; word-break:break-all; } .sr-sub mark{ background:#fde68a; color:inherit; border-radius:3px; padding:0 1px; }
+
+.tb-divider{ width:1px; align-self:stretch; margin:6px 4px; background:var(--border); }
+
+#colorSwatch{ width:20px;height:20px;border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px var(--border); cursor:pointer; } #colorInput{ position:absolute; opacity:0; width:0; height:0; pointer-events:none; }
+
+/* ============ OL ZOOM CONTROL (moved to bottom-right) ============ */ .ol-zoom{ top:auto !important; left:auto !important; bottom:20px; right:14px; background:#fff !important; border-radius:12px; box-shadow:var(--panel-shadow); padding:4px !important; } .ol-zoom .ol-zoom-in, .ol-zoom .ol-zoom-out{ background:transparent !important; color:var(--ink) !important; border-radius:8px !important; } .ol-zoom .ol-zoom-in:hover, .ol-zoom .ol-zoom-out:hover{ background:#f3f4f6 !important; }
+
+/* ============ TOP-LEFT CONTROLS (annotations moved here) ============ */ #topLeftControls{ position:absolute; top:14px; left:14px; z-index:1000; display:flex; align-items:center; gap:8px; }
+
+/* ============ TOP-RIGHT CONTROLS ============ */ #topRightControls{ position:absolute; top:14px; right:14px; z-index:1000; display:flex; align-items:center; gap:8px; }
+
+#listToggle{ display:flex; align-items:center; gap:7px; height:40px; padding:0 14px; border-radius:12px; background:#fff; border:none; box-shadow:var(--panel-shadow); cursor:pointer; font-size:13px; font-weight:600; color:var(--ink); font-family:inherit; } #listToggle svg{ width:18px;height:18px; stroke:var(--ink); fill:none; flex:none; } #listToggle.active{ background:var(--accent-bg); color:var(--accent); } #listToggle.active svg{ stroke:var(--accent); }
+
+#settingsToggle{ width:40px;height:40px; border-radius:12px; background:#fff; border:none; box-shadow:var(--panel-shadow); cursor:pointer; display:flex;align-items:center;justify-content:center; flex:none; } #settingsToggle svg{ width:20px;height:20px; stroke:var(--ink); fill:none; }
+
+#thermalPanel{ position:absolute; top:64px; right:14px; z-index:1000; width:200px; background:#fff; border-radius:14px; box-shadow:var(--panel-shadow); padding:14px 16px 16px; display:none; } #thermalPanel.open{ display:block; } #thermalPanel h3{ margin:0 0 10px; font-size:13px; font-weight:700; color:var(--ink); } .ctrl-row{ margin-bottom:12px; } .ctrl-label{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:4px; } .ctrl-row input[type=range]{ width:100%; } .reset-btn{ border:none; background:none; cursor:pointer; color:var(--accent); font-size:12px; padding:0; } #fullscreenBtn{ width:100%; margin-top:2px; padding:8px; border-radius:8px; border:1px solid var(--border); background:#fafafa; cursor:pointer; font-size:12px; color:var(--ink); }
+
+/* ============ ANNOTATIONS PANEL ============ */ #annotationsPanel{ position:absolute; top:64px; left:14px; z-index:1000; width:250px; max-height:min(90vh,840px); background:#fff; border-radius:14px; box-shadow:var(--panel-shadow); padding:14px 12px 12px; display:none; flex-direction:column; } #annotationsPanel.open{ display:flex; } #annotationsPanel h3{ margin:0 0 8px 4px; font-size:13px; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:6px; }
+
+/* Keep every row above the scrolling list at its natural height — only #annotationsList should flex/shrink to fit available space. */ #annotationsPanel h3, .severity-legend, .sort-toggle-row, #clearNamesBtn, .ctrl-row{ flex:none; }
+
+#annotationsTotalCount{ background:var(--accent-bg); color:var(--accent); font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; } #annotationsList{ overflow-y:auto; display:flex; flex-direction:column; gap:2px; flex:1; min-height:120px; } #annotationsEmpty{ font-size:12px; color:var(--muted); padding:8px 4px; } .ann-group{ margin-bottom:2px; } .ann-group-header{ display:flex; align-items:center; gap:6px; padding:7px 6px; border-radius:8px; cursor:pointer; font-size:12.5px; font-weight:700; color:var(--ink); } .ann-group-header:hover{ background:#f3f4f6; } .ann-group-header .chevron{ display:inline-flex; transition:transform .12s ease; color:var(--muted); flex:none; } .ann-group.collapsed .chevron{ transform:rotate(-90deg); } .ann-group-header .ann-group-count{ margin-left:auto; background:#f1f2f4; color:var(--muted); font-size:11px; font-weight:600; padding:1px 7px; border-radius:999px; } .ann-group-items{ padding-left:14px; } .ann-group.collapsed .ann-group-items{ display:none; }
+
+.ann-item{ display:flex; align-items:center; gap:8px; padding:6px 6px; border-radius:8px; cursor:pointer; transition:opacity .12s ease; } .ann-item:hover{ background:#f3f4f6; } .ann-item.severity-filtered{ opacity:0.35; } .ann-swatch{ width:9px;height:9px;border-radius:50%; flex:none; } .ann-name{ flex:1; font-size:12.5px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .ann-name.untitled{ color:var(--muted); font-style:italic; } .ann-btn{ flex:none; width:24px;height:24px; border:none; background:none; border-radius:6px; cursor:pointer; display:flex;align-items:center;justify-content:center; color:var(--muted); } .ann-btn:hover{ background:#e5e7eb; } .ann-btn.hidden-toggle.is-hidden{ color:#c9cdd4; } .ann-btn.ann-delete:hover{ background:#fee2e2; color:#dc2626; }
+
+/* ============ ANNOTATIONS PANEL TOOLBAR (sort + strip names) ============ */ .sort-toggle-row{ display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:8px; padding:0 4px; } .sort-toggle-row input[type=checkbox]{ accent-color:var(--accent); cursor:pointer; } .ann-toolbar-btn{ width:100%; padding:7px; border:1px solid var(--border); border-radius:8px; background:#fafafa; cursor:pointer; font-size:12px; color:var(--ink); margin-bottom:10px; } .ann-toolbar-btn:hover{ background:#fee2e2; color:#dc2626; border-color:#fecaca; }
+
+/* ============ SEVERITY LEGEND / FILTER ============ */ .severity-legend{ border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; } .severity-legend-header{ display:flex; align-items:center; gap:6px; padding:8px 8px; cursor:pointer; font-size:12.5px; font-weight:700; color:var(--ink); background:#fafafa; } .severity-legend-header:hover{ background:#f3f4f6; } .severity-legend-header .chevron{ display:inline-flex; transition:transform .12s ease; color:var(--muted); flex:none; } .severity-legend.collapsed .chevron{ transform:rotate(-90deg); } .severity-legend-header .severity-legend-hint{ margin-left:auto; font-size:10.5px; font-weight:600; color:var(--muted); text-transform:none; } .severity-legend-body{ display:flex; gap:6px; padding:8px; } .severity-legend.collapsed .severity-legend-body{ display:none; } .sev-filter-btn{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:7px 4px; border:1px solid var(--border); border-radius:8px; background:#fff; cursor:pointer; font-size:11.5px; font-weight:700; color:var(--muted); opacity:.4; transition:opacity .12s ease, background .12s ease, border-color .12s ease, color .12s ease; } .sev-filter-btn:hover{ opacity:.7; } .sev-filter-btn.active{ opacity:1; } .sev-filter-btn .sev-filter-top{ display:flex; align-items:center; gap:5px; } .sev-filter-btn .sev-dot{ width:8px;height:8px;border-radius:50%; flex:none; } .sev-filter-btn .sev-count{ font-size:14px; font-weight:800; line-height:1; } .sev-filter-btn.active[data-severity="low"]{ background:#dcfce7; border-color:#86efac; color:#15803d; } .sev-filter-btn.active[data-severity="medium"]{ background:#fef3c7; border-color:#fcd34d; color:#b45309; } .sev-filter-btn.active[data-severity="high"]{ background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
+
+/* ============ FEATURE EDITOR POPUP ============ / #editor{ position:absolute; display:none; align-items:stretch; gap:0; background:#fff; border-radius:14px; box-shadow:var(--panel-shadow); } #editor.open{ display:flex; } #editorMainCol{ position:relative; width:230px; flex:none; padding:14px 14px 12px; } #editorPhotoCol{ flex:none; padding:14px 14px 12px 0; display:flex; flex-direction:row; gap:12px; } .editor-photo-block{ width:260px; flex:none; display:flex; flex-direction:column; gap:6px; height:300px; overflow: hidden; / prevents image overflow / } .editor-photo-block img { width: 100%; height: 100%; object-fit: contain; / keeps aspect ratio, fits inside */ } .editor-photo-label{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; color:var(--muted); } .editor-photo-block .zoom-wrap{ width:100%; flex:1; min-height:0; position:relative; } .editor-photo-block .zoom-wrap::after{ content:"⤢ Click to enlarge"; position:absolute; top:6px; left:8px; background:rgba(0,0,0,.55); color:#fff; font-size:10px; padding:2px 7px; border-radius:6px; pointer-events:none; opacity:0; transition:opacity .12s ease; } .editor-photo-block .zoom-wrap:hover::after{ opacity:1; } .editor-photo-info{ display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted); gap:8px; } .editor-photo-info .editor-photo-file{ font-family:"SF Mono",Consolas,monospace; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .editor-photo-info .editor-photo-distance{ flex:none; } .editor-photo-info .editor-photo-distance.far{ color:#b45309; font-weight:600; } #editor .editor-close{ position:absolute; top:8px; right:10px; border:none; background:none; cursor:pointer; font-size:15px; color:var(--muted); line-height:1; } #editor label{ display:block; font-size:11px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color:var(--muted); margin:0 0 4px; } #editorName{ width:100%; box-sizing:border-box; padding:7px 8px; border:1px solid var(--border); border-radius:8px; font-size:13px; margin-bottom:12px; } #descRows{ margin-bottom:6px; } .desc-row{ display:flex; gap:6px; margin-bottom:6px; } .desc-row input{ flex:1; box-sizing:border-box; padding:6px 8px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; min-width:0; } .desc-row button{ flex:none; width:24px;height:24px; border:1px solid var(--border); background:#fafafa; border-radius:6px; cursor:pointer; color:var(--muted); font-size:14px; line-height:1; } .desc-row button:hover{ background:#fee2e2; color:#dc2626; border-color:#fecaca; }
+
+#addRowBtn{ width:22px; height:22px; padding:0; border:none; border-radius:6px; background:var(--accent-bg); color:var(--accent); cursor:pointer; font-size:15px; font-weight:700; line-height:1; display:flex; align-items:center; justify-content:center; flex:none; } #addRowBtn:hover{ background:#e0e3fc; }
+
+.desc-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; } .desc-header label{ margin:0; }
+
+#perpSection{ margin-bottom:12px; } #addPerpendicularBtn{ width:100%; padding:8px; border:none; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; font-size:12.5px; font-weight:600; } #addPerpendicularBtn:hover{ background:#4338ca; }
+
+#repeatSection{ margin-top:10px; } #repeatSection label{ display:block; font-size:11px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color:var(--muted); margin:0 0 4px; } #repeatSection .repeat-hint{ font-size:11px; color:var(--muted); text-transform:none; font-weight:400; letter-spacing:normal; margin:-2px 0 6px; } .repeat-inputs{ display:flex; gap:6px; margin-bottom:6px; } .repeat-inputs input{ flex:1; width:0; box-sizing:border-box; padding:7px 8px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; } #repeatGenerateBtn{ width:100%; padding:8px; border:1px solid var(--accent); border-radius:8px; background:var(--accent-bg); color:var(--accent); cursor:pointer; font-size:12.5px; font-weight:600; } #repeatGenerateBtn:hover{ background:#e0e3fc; }
+
+#placementHint{ position:absolute; top:70px; left:50%; transform:translateX(-50%); z-index:1001; background:var(--ink); color:#fff; padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:600; box-shadow:var(--panel-shadow); display:none; pointer-events:none; white-space:nowrap; } #placementHint.open{ display:block; }
+
+.editor-actions{ display:flex; gap:8px; } .editor-actions button{ flex:1; padding:8px; border-radius:8px; border:none; cursor:pointer; font-size:12.5px; font-weight:600; } #saveEditorBtn{ background:var(--accent); color:#fff; } #saveEditorBtn:hover{ background:#4338ca; } #deleteEditorBtn{ background:#fee2e2; color:#dc2626; } #deleteEditorBtn:hover{ background:#fecaca; }
+
+#coordsSection{ margin-bottom:12px; } #coordsInfo{ display:flex; flex-direction:column; gap:4px; background:#f9fafb; border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:"SF Mono",Consolas,monospace; font-size:11.5px; color:var(--ink); } #coordsInfo .coords-row{ display:flex; align-items:center; justify-content:space-between; gap:6px; } #coordsInfo .coords-label{ font-family:-apple-system,"Segoe UI",Arial,sans-serif; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; color:var(--muted); flex:none; } #coordsInfo .coords-value{ text-align:right; white-space:nowrap; } #coordsInfo .coords-value.loading{ color:var(--muted); font-style:italic; } #copyCoordsBtn{ flex:none; border:none; background:none; cursor:pointer; color:var(--muted); font-size:13px; } #copyCoordsBtn:hover{ color:var(--accent); }
+
+#severitySection{ margin-bottom:12px; } .severity-buttons{ display:flex; gap:6px; } .severity-btn{ flex:1; padding:7px 4px; border:1px solid var(--border); border-radius:8px; background:#fff; cursor:pointer; font-size:12px; font-weight:600; color:var(--muted); } .severity-btn:hover{ background:#f3f4f6; } .severity-btn.active[data-severity="low"]{ background:#dcfce7; border-color:#86efac; color:#15803d; } .severity-btn.active[data-severity="medium"]{ background:#fef3c7; border-color:#fcd34d; color:#b45309; } .severity-btn.active[data-severity="high"]{ background:#fee2e2; border-color:#fca5a5; color:#dc2626; }
+
+#rowColSection{ margin-bottom:4px; } .row-col-line{ display:flex; align-items:center; gap:8px; margin-bottom:8px; } .row-col-line .row-col-label{ font-size:12px; font-weight:600; color:var(--muted); flex:none; width:44px; } .row-col-line input{ flex:1; box-sizing:border-box; padding:7px 8px; border:1px solid var(--border); border-radius:8px; font-size:13px; min-width:0; } #detectRowBtn{ border:none; background:none; cursor:pointer; color:var(--accent); font-size:12px; padding:0; margin-bottom:12px; text-align:left; }
+
+/* ============ RULER / MEASURE TOOLTIP ============ */ .measure-tooltip{ position:relative; background:var(--ink); color:#fff; padding:3px 9px; border-radius:6px; font-size:11.5px; font-weight:700; white-space:nowrap; pointer-events:none; box-shadow:0 2px 6px rgba(15,23,42,.25); }
+
+/* ============ ZOOMABLE IMAGE (shared: modal + editor photo panel) ============ */ .zoom-wrap{ position:relative; overflow:hidden; background:#111; border-radius:10px; cursor:grab; touch-action:none; } .zoom-wrap img{ display:block; user-select:none; -webkit-user-drag:none; will-change:transform; } .zoom-hint{ position:absolute; bottom:6px; right:8px; background:rgba(0,0,0,.55); color:#fff; font-size:10px; padding:2px 7px; border-radius:6px; pointer-events:none; }
+
+/* ============ NEAREST-PHOTO MODAL ============ */ #photoModalBackdrop{ position:fixed; inset:0; z-index:2000; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:20px; } #photoModalBackdrop.open{ display:flex; }
+
+#photoModal{ position:relative; background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.35); max-width:min(94vw, 1040px); max-height:90vh; overflow:auto; padding:16px; } #photoModal .editor-close{ position:absolute; top:10px; right:14px; border:none; background:#fff; box-shadow:var(--panel-shadow); border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:16px; color:var(--ink); z-index:1; } #photoModalBody{ display:flex; flex-direction:row; flex-wrap:wrap; gap:14px; } .photo-modal-col{ flex:1 1 320px; min-width:280px; display:flex; flex-direction:column; gap:8px; } .photo-modal-col-label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; color:var(--muted); } .photo-modal-col img{ width:100%; max-height:56vh; object-fit:contain; border-radius:10px; background:#111; display:block; } .photo-modal-col .zoom-wrap{ width:100%; height:50vh; max-height:56vh; } .photo-modal-col-info{ display:flex; justify-content:space-between; align-items:center; font-size:12.5px; color:var(--muted); padding:0 4px; } .photo-modal-col-info .photo-modal-file{ font-family:"SF Mono",Consolas,monospace; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .photo-modal-col-info .photo-modal-distance{ flex:none; } .photo-modal-col-info .photo-modal-distance.far{ color:#b45309; font-weight:600; } .temp-popup{ position:relative; background:var(--ink); color:#fff; padding:6px 12px; border-radius:8px; font-size:13px; font-weight:700; white-space:nowrap; pointer-events:none; box-shadow:0 2px 8px rgba(15,23,42,.3); } .temp-popup.loading{ opacity:0.6; font-weight:500; }
+
+/* ============ WIDE-LENS SWIPE SLIDER ============ */ #swipeControl{ position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:1000; display:flex; align-items:center; gap:10px; background:#fff; border-radius:12px; box-shadow:var(--panel-shadow); padding:8px 16px; width:min(90vw, 420px); } #swipeControl span{ font-size:11.5px; font-weight:700; color:var(--muted); white-space:nowrap; flex:none; } #swipeControl input[type=range]{ flex:1; accent-color:var(--accent); }
+
+/* ============ LEGEND ============ */ #legend{ position:absolute; bottom:20px; left:14px; z-index:1000; background:#fff; border-radius:12px; box-shadow:var(--panel-shadow); padding:10px 12px; display:none; width:220px; } #legend.open{ display:block; } #legend .legend-title{ font-size:11px; font-weight:700; color:var(--muted); margin-bottom:6px; display:flex; justify-content:space-between; } #legend .legend-bar{ height:14px; border-radius:4px; margin-bottom:4px; } #legend .legend-labels{ display:flex; justify-content:space-between; font-size:11px; color:var(--ink); font-weight:600; } </style> </head>
+
+<body>
+
+<div id="map"></div>
+
+<!-- ================= TOOLBAR ================= --> <div id="searchPanel"> <input id="searchInput" type="text" autocomplete="off" spellcheck="false" placeholder="Coords, temp, photo filename, row, severity..."> <div id="searchStatus"></div> <div id="searchResults"></div> </div>
+
+<div id="toolbar"> <button class="tool-btn" id="tool-select" data-tool="select" title="Select"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3l7 17 2-7 7-2-16-8z"/></svg> <span>Select</span> </button>
+
+<button class="tool-btn" id="tool-point" data-tool="Point" title="Point"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.2"/></svg> <span>Point</span> </button>
+
+<button class="tool-btn" id="tool-line" data-tool="LineString" title="Line"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="20" y2="4"/></svg> <span>Line</span> </button>
+
+<button class="tool-btn" id="tool-polygon" data-tool="Polygon" title="Polygon"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 6-3 10H7L4 9z"/></svg> <span>Polygon</span> </button>
+
+<button class="tool-btn" id="tool-rectangle" data-tool="Rectangle" title="Rectangle"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="1.5"/></svg> <span>Rectangle</span> </button>
+
+<button class="tool-btn" id="tool-circle" data-tool="Circle" title="Circle"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/></svg> <span>Circle</span> </button>
+
+<button class="tool-btn" id="tool-row" title="Row (fast, auto-numbered)"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg> <span>Row</span> </button>
+
+<button class="tool-btn" id="tool-column" title="Column (fast, auto-numbered)"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="4" x2="7" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/></svg> <span>Column</span> </button>
+
+<button class="tool-btn" id="tool-ruler" title="Ruler (measure distance)"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l14-14 4 4-14 14z"/><path d="M14 6l2 2"/><path d="M11 9l2 2"/><path d="M8 12l2 2"/><path d="M5 15l2 2"/></svg> <span>Ruler</span> </button>
+
+<button class="tool-btn" id="tool-temperature" title="See temperature (click a point on the map)"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><circle cx="12" cy="18" r="3"/><path d="M9 4a3 3 0 0 1 6 0v9.5a5 5 0 1 1-6 0z"/></svg> <span>Temp</span> </button>
+
+<button class="tool-btn" id="tool-photo" title="Show nearest drone photos (click a point on the map)"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> <span>Photo</span> </button>
+
+<button class="tool-btn" id="tool-search" title="Search annotations by coordinates, temperature, photo filename, row/column or severity"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg> <span>Search</span> </button>
+
+<button class="tool-btn" id="tool-panels" title="Show or hide a square on every solar panel"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14"/><path d="M15 5v14"/><path d="M3 12h18"/></svg> <span id="panelsLabel">Panels</span> </button>
+
+<div class="tb-divider"></div>
+
+<button class="tool-btn" id="colorBtn" title="Color"> <span id="colorSwatch" style="background:#e11d48;"></span> <span>Color</span> </button> <input type="color" id="colorInput" value="#e11d48">
+
+<div class="tb-divider"></div>
+
+<button class="tool-btn" id="tool-undo" title="Undo"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2"/></svg> <span>Undo</span> </button>
+
+<button class="tool-btn" id="tool-redo" title="Redo"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7l5 5-5 5"/><path d="M20 12H10A6 6 0 0 0 10 24h2"/></svg> <span>Redo</span> </button>
+
+<div class="tb-divider"></div>
+
+<button class="tool-btn" id="tool-clear" title="Clear all"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg> <span>Clear</span> </button>
+
+<button class="tool-btn" id="tool-export" title="Export GeoJSON"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg> <span>Export</span> </button>
+
+<button class="tool-btn" id="tool-export-zip" title="Download a ZIP with the nearest thermal photo of every point annotation + a .txt with GPS and temperature"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg> <span id="exportZipLabel">ZIP</span> </button>
+
+<button class="tool-btn" id="tool-import" title="Import GeoJSON"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M5 21h14"/></svg> <span>Import</span> </button> <input type="file" id="importFileInput" accept=".geojson,.json,application/geo+json,application/json" style="display:none;"> </div>
+
+<!-- ================= ANNOTATIONS LIST (top-left) ================= --> <div id="topLeftControls"> <button id="listToggle" title="Annotations list"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg> <span>Annotations</span> </button> </div>
+
+<!-- ================= THERMAL SETTINGS (top-right) ================= --> <div id="topRightControls"> <button id="settingsToggle" title="Thermal settings"> <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> </button> </div>
+
+<div id="annotationsPanel"> <h3>Annotations <span id="annotationsTotalCount">0</span></h3>
+
+<div class="severity-legend" id="severityLegend"> <div class="severity-legend-header" id="severityLegendHeader"> <span class="chevron">▾</span> <span>Severity legend</span> <span class="severity-legend-hint">tap to show/hide</span> </div> <div class="severity-legend-body"> <button type="button" class="sev-filter-btn active" data-severity="low"> <span class="sev-filter-top"><span class="sev-dot" style="background:#22c55e;"></span>Low</span> <span class="sev-count" id="sevCountLow">0</span> </button> <button type="button" class="sev-filter-btn active" data-severity="medium"> <span class="sev-filter-top"><span class="sev-dot" style="background:#f59e0b;"></span>Medium</span> <span class="sev-count" id="sevCountMedium">0</span> </button> <button type="button" class="sev-filter-btn active" data-severity="high"> <span class="sev-filter-top"><span class="sev-dot" style="background:#ef4444;"></span>High</span> <span class="sev-count" id="sevCountHigh">0</span> </button> </div> </div>
+
+<div class="sort-toggle-row"> <span>Sort by severity</span> <input type="checkbox" id="sortBySeverityToggle"> </div>
+
+<button id="clearNamesBtn" class="ann-toolbar-btn" title="Remove the name from every annotation">Strip all names</button>
+
+<div class="ctrl-row"> <div class="ctrl-label"><span>Row / Column opacity</span></div> <input id="rowColOpacityInput" type="range" min="0" max="1" step="0.05" value="1"> </div>
+
+<div id="annotationsList"> <div id="annotationsEmpty">No annotations yet.</div> </div> </div>
+
+<div id="thermalPanel"> <h3>Thermal Controls</h3>
+
+<div class="ctrl-row"> <div class="ctrl-label"><span>Opacity</span><button class="reset-btn" id="resetOpacity">Reset</button></div> <input id="opacity" type="range" min="0" max="1" step="0.01" value="1"> </div>
+
+<div class="ctrl-row"> <div class="ctrl-label"><span>Brightness</span><button class="reset-btn" id="resetBrightness">Reset</button></div> <input id="brightness" type="range" min="-100" max="100" value="0"> </div>
+
+<div class="ctrl-row"> <div class="ctrl-label"><span>Contrast</span><button class="reset-btn" id="resetContrast">Reset</button></div> <input id="contrast" type="range" min="0" max="300" value="100"> </div>
+
+<button id="fullscreenBtn">Toggle fullscreen</button> </div>
+
+<!-- ================= WIDE-LENS SWIPE SLIDER ================= --> <div id="swipeControl"> <span id="swipeLabelLeft">Thermal</span> <input type="range" id="swipeSlider" min="0" max="100" value="100"> <span id="swipeLabelRight">Wide-lens</span> </div>
+
+<!-- ================= LEGEND ================= --> <div id="legend"> <div class="legend-title"><span>Temperature</span><span>°C</span></div> <div class="legend-bar" id="legendBar"></div> <div class="legend-labels"> <span id="legendMin"></span> <span id="legendMax"></span> </div> </div>
+
+<!-- ================= FEATURE NAME / DESCRIPTION EDITOR ================= --> <div id="editor"> <div id="editorMainCol"> <button class="editor-close" id="editorClose">×</button>
+
+<label for="editorName">Name</label> <input id="editorName" type="text" placeholder="Untitled">
+
+<div id="perpSection" style="display:none;"> <button id="addPerpendicularBtn">➕ Add Column</button>
+
+<div id="repeatSection">
+  <label id="repeatLabel">Repeat with offset</label>
+  <div class="repeat-hint">Down/up and right/left offset per repeat (meters). Use both to go oblique.</div>
+  <div class="repeat-inputs">
+    <input id="repeatDownInput" type="number" step="0.1" placeholder="Down (m)">
+    <input id="repeatRightInput" type="number" step="0.1" placeholder="Right (m)">
+  </div>
+  <div class="repeat-inputs">
+    <input id="repeatCountInput" type="number" min="1" max="200" step="1" placeholder="Count">
+  </div>
+  <button id="repeatGenerateBtn">Generate</button>
+</div>
+</div>
+
+<div id="rowColSection" style="display:none;"> <div class="row-col-line"> <span class="row-col-label">Row</span> <input id="editorRow" type="text" placeholder="e.g. 3"> </div> <div class="row-col-line"> <span class="row-col-label">Column</span> <input id="editorColumn" type="text" placeholder="e.g. 7"> </div> <button id="detectRowBtn">📐 Auto-detect row & column from nearest lines</button> </div>
+
+<div id="severitySection" style="display:none;"> <label>Severity</label> <div class="severity-buttons"> <button type="button" class="severity-btn" data-severity="low">Low</button> <button type="button" class="severity-btn" data-severity="medium">Medium</button> <button type="button" class="severity-btn" data-severity="high">High</button> </div> </div>
+
+<div class="desc-header"> <label style="margin:0;">Description</label> <button id="addRowBtn" title="Add description row">+</button> </div> <div id="descRows"></div>
+
+<div id="coordsSection" style="display:none;"> <div id="coordsInfo"> <div class="coords-row"> <span class="coords-label">GPS</span> <span class="coords-value" id="coordsText"></span> </div> <div class="coords-row"> <span class="coords-label">Temp</span> <span class="coords-value" id="tempText">—</span> </div> </div> <button id="copyCoordsBtn" title="Copy coordinates to clipboard" style="margin-top:4px;">⧉ Copy GPS</button> </div>
+
+<div class="editor-actions"> <button id="saveEditorBtn">Save</button> <button id="deleteEditorBtn">Delete</button> </div> </div>
+
+<div id="editorPhotoCol" style="display:none;"> <div class="editor-photo-block"> <div class="editor-photo-label">Thermal flight</div> <div class="zoom-wrap" id="editorPhotoWrapThermal"> <img id="editorPhotoImgThermal" src="" alt="Nearest thermal-flight photo"> <span class="zoom-hint">Scroll to zoom · drag to pan</span> </div> <div class="editor-photo-info"> <span class="editor-photo-file" id="editorPhotoFileThermal"></span> <span class="editor-photo-distance" id="editorPhotoDistanceThermal"></span> </div> </div> <div class="editor-photo-block"> <div class="editor-photo-label">Wide-lens flight</div> <div class="zoom-wrap" id="editorPhotoWrapWide"> <img id="editorPhotoImgWide" src="" alt="Nearest wide-lens photo"> <span class="zoom-hint">Scroll to zoom · drag to pan</span> </div> <div class="editor-photo-info"> <span class="editor-photo-file" id="editorPhotoFileWide"></span> <span class="editor-photo-distance" id="editorPhotoDistanceWide"></span> </div> </div> </div> </div>
+
+<div id="placementHint"></div>
+
+<!-- ================= NEAREST-PHOTO MODAL ================= --> <div id="photoModalBackdrop"> <div id="photoModal"> <button class="editor-close" id="photoModalClose">×</button> <div id="photoModalBody"> <div class="photo-modal-col"> <div class="photo-modal-col-label">Thermal flight</div> <div class="zoom-wrap" id="photoModalImgWrapThermal"> <img id="photoModalImgThermal" src="" alt="Nearest thermal-flight photo"> <span class="zoom-hint">Scroll to zoom · drag to pan · double-click to reset</span> </div> <div class="photo-modal-col-info"> <div class="photo-modal-file" id="photoModalFileThermal"></div> <div class="photo-modal-distance" id="photoModalDistanceThermal"></div> </div> </div> <div class="photo-modal-col"> <div class="photo-modal-col-label">Wide-lens flight</div> <div class="zoom-wrap" id="photoModalImgWrapWide"> <img id="photoModalImgWide" src="" alt="Nearest wide-lens photo"> <span class="zoom-hint">Scroll to zoom · drag to pan · double-click to reset</span> </div> <div class="photo-modal-col-info"> <div class="photo-modal-file" id="photoModalFileWide"></div> <div class="photo-modal-distance" id="photoModalDistanceWide"></div> </div> </div> </div> </div> </div>
+
+<script src="https://cdn.jsdelivr.net/npm/ol@v10.4.0/dist/ol.js"&gt;&lt;/script> <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"&gt;&lt;/script>
+
+<script>
+
+// ========================== // CUSTOM COLORMAP (black -> purple -> orange -> yellow) // ==========================
+
+// Builds a TiTiler-compatible "explicit" colormap: an object whose keys are // "value_start,value_end" strings and whose values are [r,g,b,a] arrays. // TiTiler colors each pixel by finding which [start,end) bucket its raw // value falls into. We interpolate steps buckets evenly across // [vmin, vmax], and interpolate the color for each bucket across the given // hex color stops (piecewise-linear, like a CSS gradient). const VMIN = 5; const VMAX = 51.9;
+
+// Temperature-based colors: purple below 25°C, orange-to-gold through // 35°C, then bright yellow up to the existing maximum. Extra stops soften // the purple-to-orange transition, and more buckets reduce visible banding. const QGIS_CONTROL_POINTS = [ [VMIN, 48, 0, 112], // deep purple at the low end [15, 88, 20, 145], // purple [21, 112, 30, 150], // violet [23, 145, 40, 145], // lighter purple [25, 185, 65, 100], // purple-orange blend near the threshold [27, 225, 90, 45], // warm orange [30, 255, 145, 20], // orange-yellow [35, 255, 205, 35], // golden yellow [35.5, 255, 255, 0], // bright yellow [VMAX, 255, 255, 0] ];
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// Piecewise-linear interpolation between QGIS's real-value control points — // mirrors exactly what QGIS's own "INTERPOLATED" color ramp does. function colorAtValue(points, value) { if (value <= points[0][0]) return points[0].slice(1); if (value >= points[points.length - 1][0]) return points[points.length - 1].slice(1); for (let i = 0; i < points.length - 1; i++) { const [v0, r0, g0, b0] = points[i]; const [v1, r1, g1, b1] = points[i + 1]; if (value >= v0 && value <= v1) { const t = v1 === v0 ? 0 : (value - v0) / (v1 - v0); return [ Math.round(lerp(r0, r1, t)), Math.round(lerp(g0, g1, t)), Math.round(lerp(b0, b1, t)) ]; } } return points[points.length - 1].slice(1); }
+
+function buildColormap(points, vmin, vmax, steps = 48) { const colormap = []; for (let i = 0; i < steps; i++) { const v0 = vmin + (i / steps) * (vmax - vmin); const v1 = i === steps - 1 ? vmax + 0.01 : vmin + ((i + 1) / steps) * (vmax - vmin); const mid = (v0 + v1) / 2; const [r, g, b] = colorAtValue(points, mid); colormap.push([[v0, v1], [r, g, b, 255]]); } return colormap; }
+
+const customColormap = buildColormap(QGIS_CONTROL_POINTS, VMIN, VMAX, 48); const colormapParam = encodeURIComponent(JSON.stringify(customColormap));
+
+// Legend gradient — reuse the same control points, positioned by their // real value's percentage along VMIN-VMAX. const legendGradientCss = linear-gradient(to right, ${QGIS_CONTROL_POINTS.map(function(p) {   const pct = ((p[0] - VMIN) / (VMAX - VMIN)) * 100;   const hex = "#" + [p[1], p[2], p[3]].map(function(c) { return c.toString(16).padStart(2, "0"); }).join("");   return hex + " " + pct.toFixed(1) + "%"; }).join(", ")});
+
+// ========================== // THERMAL LAYER // ==========================
+
+const COG_URL = "/data/vulcan/thermal_vulcan.tiff"; const TITILER_BASE = "https://tiles.helioscan.ro";
+
+const tileURL = ${TITILER_BASE}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(COG_URL)}&colormap=${colormapParam};
+
+const thermalLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ url: tileURL, crossOrigin: "anonymous" }), opacity: 1 });
+
+let brightness = 0; let contrast = 100;
+
+thermalLayer.on("postrender", function (evt) { const ctx = evt.context; if (!ctx || !ctx.canvas || (brightness === 0 && contrast === 100)) return;
+
+// Re-draw the layer canvas through the selected filter while preserving // transparent pixels around the raster tiles. ctx.save(); ctx.globalCompositeOperation = "source-atop"; ctx.filter = brightness(${100 + brightness}%) contrast(${contrast}%); ctx.drawImage(ctx.canvas, 0, 0); ctx.restore(); });
+
+// ========================== // ANNOTATION LAYER // ==========================
+
+const vectorSource = new ol.source.Vector();
+
+let currentColor = "#e11d48"; let rowColOpacity = 1;
+
+// Severity filter state: when a severity is toggled off here, point // annotations with that severity are hidden from the map (and dimmed in // the annotations list) regardless of their own individual visibility flag. let severityFilter = { low: true, medium: true, high: true };
+
+function hexToRgba(hex, alpha) { const r = parseInt(hex.slice(1, 3), 16); const g = parseInt(hex.slice(3, 5), 16); const b = parseInt(hex.slice(5, 7), 16); return rgba(${r},${g},${b},${alpha}); }
+
+const SEVERITY_COLORS = { low: "#22c55e", medium: "#f59e0b", high: "#ef4444" };
+
+function isSeverityFilteredOut(feature) { if (feature.getGeometry().getType() !== "Point") return false; const severity = feature.get("severity"); if (!severity) return false; return severityFilter[severity] === false; }
+
+function featureStyle(feature) { if (feature.get("hidden") || isSeverityFilteredOut(feature)) return []; const shape = feature.get("shape"); const isGuide = shape === "Row" || shape === "Column"; const isPoint = feature.getGeometry().getType() === "Point"; const severity = feature.get("severity"); // Points with a severity set are colored entirely by their severity // (green/orange/red) instead of the annotation's own chosen color. const severityColor = (isPoint && severity && SEVERITY_COLORS[severity]) ? SEVERITY_COLORS[severity] : null; const color = severityColor || feature.get("color") || currentColor; const alpha = isGuide ? rowColOpacity : 1;
+
+const styles = [ new ol.style.Style({ image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: color }), stroke: new ol.style.Stroke({ color: "#fff", width: 2 }) }), stroke: new ol.style.Stroke({ color: hexToRgba(color, alpha), width: 2.5 }), fill: new ol.style.Fill({ color: hexToRgba(color, 0.18 * alpha) }) }) ];
+
+const name = feature.get("name"); if (name) { let textGeometry; if (isGuide) { const coords = feature.getGeometry().getCoordinates(); textGeometry = new ol.geom.Point(coords[0]); } styles.push(new ol.style.Style({ geometry: textGeometry, text: new ol.style.Text({ text: name, offsetY: -16, font: "600 12px -apple-system, Arial, sans-serif", fill: new ol.style.Fill({ color: hexToRgba("#1f2430", alpha) }), stroke: new ol.style.Stroke({ color: hexToRgba("#ffffff", alpha), width: 3 }) }) })); }
+
+return styles; }
+
+const vectorLayer = new ol.layer.Vector({ source: vectorSource, style: featureStyle });
+
+// ========================== // RULER / MEASURE LAYER // ==========================
+
+const measureSource = new ol.source.Vector(); const measureLayer = new ol.layer.Vector({ source: measureSource, style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: "#111827", width: 2, lineDash: [6, 6] }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: "#111827" }), stroke: new ol.style.Stroke({ color: "#fff", width: 1.5 }) }) }) });
+
+const map = new ol.Map({ target: "map", layers: [ new ol.layer.Tile({ source: new ol.source.OSM() }), thermalLayer, vectorLayer, measureLayer ], view: new ol.View({ center: ol.proj.fromLonLat([25.497553, 44.203172]), zoom: 18 }) });
+
+// ========================== // EDITOR POPUP (name + description rows) // ==========================
+
+const editorEl = document.getElementById("editor"); const editorOverlay = new ol.Overlay({ element: editorEl, positioning: "bottom-left", offset: [16, -16], stopEvent: true }); map.addOverlay(editorOverlay);
+
+let activeFeature = null;
+
+function getFeatureAnchor(feature) { const geom = feature.getGeometry(); const type = geom.getType(); if (type === "Point") return geom.getCoordinates(); if (type === "Circle") return geom.getCenter(); return ol.extent.getCenter(geom.getExtent()); }
+
+function renderDescRows(rows) { const container = document.getElementById("descRows"); container.innerHTML = ""; rows.forEach((val, i) => { const row = document.createElement("div"); row.className = "desc-row";
+
+const input = document.createElement("input");
+input.type = "text";
+input.value = val;
+input.placeholder = "Detail...";
+input.dataset.index = i;
+
+const removeBtn = document.createElement("button");
+removeBtn.textContent = "\u2212";
+removeBtn.title = "Remove row";
+removeBtn.onclick = () => {
+  rows.splice(i, 1);
+  renderDescRows(rows);
+};
+
+row.appendChild(input);
+row.appendChild(removeBtn);
+container.appendChild(row);
+}); }
+
+let editingRows = []; let selectedSeverity = "";
+
+function renderSeverityButtons() { document.querySelectorAll(".severity-btn").forEach((btn) => { btn.classList.toggle("active", btn.dataset.severity === selectedSeverity); }); }
+
+document.querySelectorAll(".severity-btn").forEach((btn) => { btn.onclick = () => { selectedSeverity = (selectedSeverity === btn.dataset.severity) ? "" : btn.dataset.severity; renderSeverityButtons(); }; });
+
+function openEditor(feature) { activeFeature = feature; document.getElementById("editorName").value = feature.get("name") || ""; editingRows = (feature.get("description") || []).slice(); renderDescRows(editingRows);
+
+const isPoint = feature.getGeometry().getType() === "Point"; const shape = feature.get("shape");
+
+const perpSection = document.getElementById("perpSection"); const addPerpendicularBtn = document.getElementById("addPerpendicularBtn"); if (shape === "Row" || shape === "Column") { perpSection.style.display = ""; addPerpendicularBtn.textContent = shape === "Row" ? "➕ Add Column" : "➕ Add Row"; } else { perpSection.style.display = "none"; }
+
+const rowColSection = document.getElementById("rowColSection"); rowColSection.style.display = isPoint ? "" : "none"; document.getElementById("editorRow").value = feature.get("row") || ""; document.getElementById("editorColumn").value = feature.get("column") || "";
+
+document.getElementById("severitySection").style.display = isPoint ? "" : "none"; selectedSeverity = feature.get("severity") || ""; renderSeverityButtons();
+
+const coordsSection = document.getElementById("coordsSection"); const editorPhotoCol = document.getElementById("editorPhotoCol");
+
+if (isPoint) { coordsSection.style.display = ""; updateCoordsAndTemp(feature); editorPhotoCol.style.display = "flex"; updateEditorPhoto(feature); } else { coordsSection.style.display = "none"; editorPhotoCol.style.display = "none"; }
+
+editorOverlay.setPosition(getFeatureAnchor(feature)); editorEl.classList.add("open");
+
+requestAnimationFrame(() => { editorPhotoZoomPanThermal.reset(); editorPhotoZoomPanWide.reset(); }); }
+
+// Fills in the GPS text immediately, then fetches the real pixel value at // that point from TiTiler and fills in the temperature once it resolves. async function updateCoordsAndTemp(feature) { const coord = feature.getGeometry().getCoordinates(); const lonLat = ol.proj.toLonLat(coord); document.getElementById("coordsText").textContent = lonLat[1].toFixed(6) + ", " + lonLat[0].toFixed(6);
+
+const tempEl = document.getElementById("tempText"); tempEl.textContent = "Reading..."; tempEl.classList.add("loading");
+
+try { const res = await fetch( ${TITILER_BASE}/cog/point/${lonLat[0]},${lonLat[1]}?url=${encodeURIComponent(COG_URL)} ); if (!res.ok) throw new Error("point query failed"); const data = await res.json(); const value = data.values && data.values[0]; tempEl.classList.remove("loading"); tempEl.textContent = (value === null || value === undefined) ? "No data" : ${value.toFixed(1)}°C; } catch (err) { tempEl.classList.remove("loading"); tempEl.textContent = "Error"; } }
+
+function closeEditor() { editorEl.classList.remove("open"); editorOverlay.setPosition(undefined); activeFeature = null; }
+
+document.getElementById("addRowBtn").onclick = () => { editingRows.push(""); renderDescRows(editingRows); };
+
+document.getElementById("editorClose").onclick = closeEditor;
+
+document.getElementById("copyCoordsBtn").onclick = function () { const text = document.getElementById("coordsText").textContent; navigator.clipboard.writeText(text).then(() => { const original = this.textContent; this.textContent = "✓"; setTimeout(() => { this.textContent = original; }, 900); }).catch(() => {}); };
+
+document.getElementById("detectRowBtn").onclick = function () { if (!activeFeature) return; const coord = activeFeature.getGeometry().getCoordinates();
+
+function lineOffset(line, axis) { const coords = line.getGeometry().getCoordinates(); const [x1, y1] = coords[0]; const [x2, y2] = coords[1]; if (axis === "row") { const dx = x2 - x1; if (Math.abs(dx) < 1e-6) { const cp = line.getGeometry().getClosestPoint(coord); return Math.hypot(cp[0] - coord[0], cp[1] - coord[1]); } const t = (coord[0] - x1) / dx; const yInterp = y1 + t * (y2 - y1); return Math.abs(coord[1] - yInterp); } else { const dy = y2 - y1; if (Math.abs(dy) < 1e-6) { const cp = line.getGeometry().getClosestPoint(coord); return Math.hypot(cp[0] - coord[0], cp[1] - coord[1]); } const t = (coord[1] - y1) / dy; const xInterp = x1 + t * (x2 - x1); return Math.abs(coord[0] - xInterp); } }
+
+function closestLabel(shape, axis) { const lines = vectorSource.getFeatures().filter((f) => f.get("shape") === shape); if (lines.length === 0) return null; let best = null; let bestDist = Infinity; lines.forEach((line) => { const dist = lineOffset(line, axis); if (dist < bestDist) { bestDist = dist; best = line; } }); const match = /(\d+)/.exec(best.get("name") || ""); return match ? match[1] : (best.get("name") || ""); }
+
+const rowResult = closestLabel("Row", "row"); const columnResult = closestLabel("Column", "column");
+
+if (rowResult === null && columnResult === null) { const original = this.textContent; this.textContent = "No Row or Column lines found — draw some first"; setTimeout(() => { this.textContent = original; }, 2200); return; }
+
+if (rowResult !== null) document.getElementById("editorRow").value = rowResult; if (columnResult !== null) document.getElementById("editorColumn").value = columnResult; };
+
+document.getElementById("saveEditorBtn").onclick = () => { if (!activeFeature) return; const rowInputs = document.querySelectorAll("#descRows input"); const rows = Array.from(rowInputs).map(i => i.value).filter(v => v.trim() !== ""); activeFeature.set("name", document.getElementById("editorName").value.trim()); activeFeature.set("description", rows); activeFeature.set("row", document.getElementById("editorRow").value.trim()); activeFeature.set("column", document.getElementById("editorColumn").value.trim()); activeFeature.set("severity", selectedSeverity); vectorLayer.changed(); renderAnnotationsList(); closeEditor(); };
+
+document.getElementById("deleteEditorBtn").onclick = () => { if (!activeFeature) return; vectorSource.removeFeature(activeFeature); closeEditor(); };
+
+// ========================== // PERPENDICULAR ROW/COLUMN CREATION // ==========================
+
+const PERP_LENGTH_PX = 56;
+
+function perpLengthMapUnits() { const resolution = map.getView().getResolution() || 1; return resolution * PERP_LENGTH_PX; }
+
+let pendingPerpendicular = null;
+
+function showPlacementHint(text) { const el = document.getElementById("placementHint"); el.textContent = text + " (Esc to cancel)"; el.classList.add("open"); }
+
+function hidePlacementHint() { document.getElementById("placementHint").classList.remove("open"); }
+
+function beginAddPerpendicular(feature) { const shape = feature.get("shape"); if (shape !== "Row" && shape !== "Column") return; clearInteractions(); pendingPerpendicular = { feature, newShape: shape === "Row" ? "Column" : "Row" }; closeEditor(); map.getTargetElement().style.cursor = "crosshair"; showPlacementHint( shape === "Row" ? "Click along the row to place a column" : "Click along the column to place a row" ); }
+
+function cancelAddPerpendicular() { pendingPerpendicular = null; map.getTargetElement().style.cursor = ""; hidePlacementHint(); activateSelect(document.getElementById("tool-select")); }
+
+map.on("click", (evt) => { if (pendingPerpendicular) { const { feature, newShape } = pendingPerpendicular; const shape = feature.get("shape");
+
+const closest = feature.getGeometry().getClosestPoint(evt.coordinate);
+const half = perpLengthMapUnits() / 2;
+
+const newCoords = shape === "Row"
+  ? [[closest[0], closest[1] - half], [closest[0], closest[1] + half]]
+  : [[closest[0] - half, closest[1]], [closest[0] + half, closest[1]]];
+
+const newFeature = new ol.Feature({ geometry: new ol.geom.LineString(newCoords) });
+newFeature.set("color", feature.get("color") || currentColor);
+newFeature.set("shape", newShape);
+newFeature.set("name", newShape + " " + nextAnnotationNumber(newShape, newShape));
+newFeature.set("description", []);
+vectorSource.addFeature(newFeature);
+
+pendingPerpendicular = null;
+map.getTargetElement().style.cursor = "";
+hidePlacementHint();
+
+activateSelect(document.getElementById("tool-select"));
+openEditor(newFeature);
+return;
+}
+
+if (temperatureModeActive) { handleTemperatureClick(evt.coordinate); return; }
+
+if (photoModeActive) { handlePhotoClick(evt.coordinate); } });
+
+document.addEventListener("keydown", (e) => { if (e.key !== "Escape") return; if (pendingPerpendicular) { cancelAddPerpendicular(); } else if (measureDraw) { measureDraw.abortDrawing(); } });
+
+document.getElementById("addPerpendicularBtn").onclick = () => { if (!activeFeature) return; beginAddPerpendicular(activeFeature); };
+
+// ========================== // BULK REPEAT (draw one row/column, auto-generate the rest — straight or oblique) // ==========================
+
+function metersToMapUnitsAt(coordinate, meters) { const lonLat = ol.proj.toLonLat(coordinate); const latRad = (lonLat[1] * Math.PI) / 180; const scale = 1 / Math.cos(latRad); return meters * scale; }
+
+function repeatFeature(feature, downM, rightM, count) { const shape = feature.get("shape"); if (shape !== "Row" && shape !== "Column") return [];
+
+const coords = feature.getGeometry().getCoordinates(); const anchor = coords[0]; const rightUnits = metersToMapUnitsAt(anchor, rightM); const downUnits = metersToMapUnitsAt(anchor, downM); const created = [];
+
+for (let i = 1; i <= count; i++) { const offX = rightUnits * i; const offY = -downUnits * i; const newCoords = coords.map(([x, y]) => [x + offX, y + offY]); const newFeature = new ol.Feature({ geometry: new ol.geom.LineString(newCoords) }); newFeature.set("color", feature.get("color") || currentColor); newFeature.set("shape", shape); newFeature.set("name", shape + " " + nextAnnotationNumber(shape, shape)); newFeature.set("description", []); vectorSource.addFeature(newFeature); created.push(newFeature); } return created; }
+
+document.getElementById("repeatGenerateBtn").onclick = function () { if (!activeFeature) return; const btn = this; const down = parseFloat(document.getElementById("repeatDownInput").value) || 0; const right = parseFloat(document.getElementById("repeatRightInput").value) || 0; const count = parseInt(document.getElementById("repeatCountInput").value, 10);
+
+const flashError = (msg) => { const original = btn.textContent; btn.textContent = msg; setTimeout(() => { btn.textContent = original; }, 2000); };
+
+if (down === 0 && right === 0) { flashError("Enter a down and/or right offset first"); return; } if (!count || count < 1 || isNaN(count)) { flashError("Enter how many to generate"); return; }
+
+const feature = activeFeature; const created = repeatFeature(feature, down, right, count); renderAnnotationsList();
+
+if (created.length === 1) { openEditor(created[0]); } else { closeEditor(); } };
+
+// ========================== // RULER (measure distance between two points) // ==========================
+
+let measureDraw = null; let measureTooltipEl = null; let measureTooltipOverlay = null; let measureTooltips = [];
+
+function formatLength(geometry) { const length = ol.sphere.getLength(geometry); if (length > 1000) return (length / 1000).toFixed(2) + " km"; return length.toFixed(1) + " m"; }
+
+function createMeasureTooltip() { measureTooltipEl = document.createElement("div"); measureTooltipEl.className = "measure-tooltip"; measureTooltipOverlay = new ol.Overlay({ element: measureTooltipEl, offset: [0, -10], positioning: "bottom-center", stopEvent: false }); map.addOverlay(measureTooltipOverlay); measureTooltips.push(measureTooltipOverlay); }
+
+function activateRuler(btn) { clearInteractions(); closeEditor(); createMeasureTooltip(); showPlacementHint("Click two points to measure distance");
+
+measureDraw = new ol.interaction.Draw({ source: measureSource, type: "LineString", minPoints: 2, maxPoints: 2 });
+
+measureDraw.on("drawstart", (evt) => { measureSource.getFeatures().forEach((f) => { if (f !== evt.feature) measureSource.removeFeature(f); }); measureTooltips.forEach((ov) => { if (ov !== measureTooltipOverlay) map.removeOverlay(ov); }); measureTooltips = [measureTooltipOverlay];
+
+const sketchGeom = evt.feature.getGeometry();
+sketchGeom.on("change", (e) => {
+  const geom = e.target;
+  const coords = geom.getCoordinates();
+  measureTooltipEl.textContent = formatLength(geom);
+  measureTooltipOverlay.setPosition(coords[coords.length - 1]);
+});
+});
+
+measureDraw.on("drawend", (evt) => { const finishedEl = measureTooltipEl; finishedEl.textContent = formatLength(evt.feature.getGeometry()); createMeasureTooltip(); });
+
+map.addInteraction(measureDraw); setActiveButton(btn); }
+
+function clearMeasurements() { measureSource.clear(); measureTooltips.forEach((ov) => map.removeOverlay(ov)); measureTooltips = []; measureTooltipEl = null; measureTooltipOverlay = null; if (measureDraw) createMeasureTooltip(); }
+
+document.getElementById("tool-ruler").onclick = (e) => activateRuler(e.currentTarget);
+
+// ========================== // TEMPERATURE PICKER ("See temperature" tool) // ==========================
+
+// Clicking the Temp button arms "temperature mode": the next click(s) on // the map query the raw pixel value at that lon/lat via TiTiler's /cog/point // endpoint and show it in a small popup. Stays active until another tool // is picked, so you can click multiple spots in a row. let temperatureModeActive = false; let tempPopupEl = null; let tempPopupOverlay = null;
+
+function createTempPopup() { tempPopupEl = document.createElement("div"); tempPopupEl.className = "temp-popup"; tempPopupOverlay = new ol.Overlay({ element: tempPopupEl, offset: [0, -14], positioning: "bottom-center", stopEvent: false }); map.addOverlay(tempPopupOverlay); }
+
+async function handleTemperatureClick(coordinate) { const lonLat = ol.proj.toLonLat(coordinate); const [lon, lat] = lonLat;
+
+if (!tempPopupOverlay) createTempPopup(); tempPopupEl.className = "temp-popup loading"; tempPopupEl.textContent = "Reading..."; tempPopupOverlay.setPosition(coordinate);
+
+try { const res = await fetch( ${TITILER_BASE}/cog/point/${lon},${lat}?url=${encodeURIComponent(COG_URL)} ); if (!res.ok) throw new Error("point query failed"); const data = await res.json(); const value = data.values && data.values[0];
+
+tempPopupEl.className = "temp-popup";
+if (value === null || value === undefined) {
+  tempPopupEl.textContent = "No data here";
+} else {
+  tempPopupEl.textContent = `${value.toFixed(1)}°C`;
+}
+} catch (err) { tempPopupEl.className = "temp-popup"; tempPopupEl.textContent = "Error reading value"; } }
+
+function activateTemperatureTool(btn) { clearInteractions(); closeEditor(); temperatureModeActive = true; if (!tempPopupOverlay) createTempPopup(); showPlacementHint("Click anywhere on the thermal layer to see the temperature"); setActiveButton(btn); document.getElementById("legend").classList.add("open"); }
+
+function deactivateTemperatureTool() { temperatureModeActive = false; if (tempPopupOverlay) { map.removeOverlay(tempPopupOverlay); tempPopupOverlay = null; tempPopupEl = null; } document.getElementById("legend").classList.remove("open"); hidePlacementHint(); }
+
+document.getElementById("tool-temperature").onclick = (e) => activateTemperatureTool(e.currentTarget);
+
+// ========================== // ZOOM/PAN CONTROLLER (shared by photo modal + editor photo panel) // ==========================
+
+// Wraps an <img> inside a container: wheel to zoom (centered on cursor), // drag to pan once zoomed in, double-click to reset. Call .reset() whenever // a new image src is assigned so the next photo starts fitted, centered. // // Unlike a CSS width:100%/object-fit approach, the image is never shrunk by // CSS — it keeps its full natural pixel size and ALL scaling (fit-to-view // and zoom) happens via the transform. That way zooming in samples the real // full-resolution source instead of stretching an already-downscaled raster. function createZoomPan(container, img) { // The <img> element is kept at its FULL natural pixel size at all times // (never shrunk via CSS width/height). Both the initial "fit to view" AND // any subsequent zooming are done through the SAME CSS transform scale. // This matters because a two-step approach (shrink the img's CSS box to // the fitted size, then apply an extra transform on top to zoom in) lets // the browser rasterize/cache a low-resolution bitmap at the fitted size // first — zooming in after that just magnifies that already-blurry // bitmap, no matter how high the zoom ceiling is set. Doing it all as one // continuous transform on the natural-size element means the browser // always has the full-resolution source available to sample from at // whatever the current on-screen size ends up being. let scale = 1, tx = 0, ty = 0; let minScale = 1, maxScale = 1; let dragging = false, startX = 0, startY = 0, tx0 = 0, ty0 = 0; let dragMoved = false;
+
+function apply() { img.style.transform = translate(${tx}px, ${ty}px) scale(${scale}); }
+
+// Locks the img's CSS box to its natural pixel dimensions (so it's never // pre-downscaled by layout), then figures out the transform scale needed // to fit it in the container — that becomes both the starting scale and // the minimum (can't zoom out further than "fit"). The maximum scale is // set so zooming can reach true native 1:1 physical-pixel resolution on // THIS screen: since the img box is sized in natural-pixel CSS units, and // 1 CSS pixel maps to devicePixelRatio physical pixels, "native detail" // is reached at transform scale = 1/devicePixelRatio (not 1) — so the // ceiling is whichever is larger, fitScale or 1/devicePixelRatio, in case // the image is so small relative to the container that "fit" already // exceeds native size. function computeFit() { const naturalW = img.naturalWidth; const naturalH = img.naturalHeight; if (!naturalW || !naturalH) return;
+
+img.style.width = naturalW + "px";
+img.style.height = naturalH + "px";
+
+const rect = container.getBoundingClientRect();
+const fitScale = Math.min(rect.width / naturalW, rect.height / naturalH);
+const dpr = window.devicePixelRatio || 1;
+
+minScale = fitScale;
+maxScale = Math.max(fitScale, 1 / dpr);
+
+scale = fitScale;
+tx = (rect.width - naturalW * scale) / 2;
+ty = (rect.height - naturalH * scale) / 2;
+
+img.style.transition = "none";
+apply();
+}
+
+function reset() { if (img.complete && img.naturalWidth) { computeFit(); } else { // Image hasn't loaded yet — the "load" listener below will call // computeFit() once it has. Avoid a stale/huge unscaled flash in // the meantime. scale = 1; tx = 0; ty = 0; img.style.transition = "none"; apply(); } }
+
+img.addEventListener("load", () => requestAnimationFrame(computeFit));
+
+container.addEventListener("wheel", function (e) { e.preventDefault(); const rect = container.getBoundingClientRect(); const mx = e.clientX - rect.left; const my = e.clientY - rect.top; const prevScale = scale; scale = Math.min(maxScale, Math.max(minScale, scale * (1 - e.deltaY * 0.0015))); tx = mx - (mx - tx) * (scale / prevScale); ty = my - (my - ty) * (scale / prevScale); apply(); }, { passive: false });
+
+container.addEventListener("mousedown", function (e) { dragging = true; dragMoved = false; startX = e.clientX; startY = e.clientY; tx0 = tx; ty0 = ty; container.style.cursor = "grabbing"; });
+
+window.addEventListener("mousemove", function (e) { if (!dragging) return; if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) { dragMoved = true; } tx = tx0 + (e.clientX - startX); ty = ty0 + (e.clientY - startY); apply(); });
+
+window.addEventListener("mouseup", function () { dragging = false; container.style.cursor = "grab"; });
+
+container.addEventListener("dblclick", reset);
+
+img.style.transformOrigin = "0 0"; reset();
+
+return { reset, wasDragged: () => dragMoved }; }
+
+const PHOTOS_BASE = ${TITILER_BASE}/vulcan/photos; // https://tiles.helioscan.ro/photos const PHOTOS_INDEX_URL = ${TITILER_BASE}/vulcan/photos.json; // thermal-flight photos const PHOTOS_INDEX_URL_WIDE = ${TITILER_BASE}/vulcan/photos2.json; // wide-lens-flight photos
+
+// Each index is an array of {batch, file, path, lat, lon}, cached per-URL // once loaded so switching tools/reopening the editor doesn't refetch. const photoIndexCache = {}; const photoIndexLoadPromises = {};
+
+function loadPhotoIndex(url) { if (photoIndexCache[url]) return Promise.resolve(photoIndexCache[url]); if (photoIndexLoadPromises[url]) return photoIndexLoadPromises[url]; photoIndexLoadPromises[url] = fetch(url, { cache: "no-store" }) .then((res) => { if (!res.ok) throw new Error("failed to load " + url); return res.json(); }) .then((data) => { photoIndexCache[url] = data; return data; }); return photoIndexLoadPromises[url]; }
+
+// Loads both indexes in parallel. Either one failing (e.g. photos2.json // not uploaded yet) degrades to an empty array for that side rather than // breaking the other column. function loadBothPhotoIndexes() { return Promise.all([ loadPhotoIndex(PHOTOS_INDEX_URL).catch(() => []), loadPhotoIndex(PHOTOS_INDEX_URL_WIDE).catch(() => []) ]).then(([thermalIndex, wideIndex]) => ({ thermalIndex, wideIndex })); }
+
+// Haversine distance in meters between two lon/lat points. function haversineMeters(lon1, lat1, lon2, lat2) { const R = 6371000; const toRad = (d) => (d * Math.PI) / 180; const dLat = toRad(lat2 - lat1); const dLon = toRad(lon2 - lon1); const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(a)); }
+
+function findNearestPhoto(lon, lat, photoIndex) { if (!photoIndex || photoIndex.length === 0) return null; let best = null; let bestDist = Infinity; for (const p of photoIndex) { const d = haversineMeters(lon, lat, p.lon, p.lat); if (d < bestDist) { bestDist = d; best = p; } } return { photo: best, distance: bestDist }; }
+
+// Distance beyond which we flag the match as "not really at this spot" — // tune this to your flight's photo spacing/overlap. const PHOTO_DISTANCE_WARN_METERS = 15;
+
+let photoModeActive = false;
+
+const photoModalImgWrapThermal = document.getElementById("photoModalImgWrapThermal"); const photoModalImgThermal = document.getElementById("photoModalImgThermal"); const photoModalZoomPanThermal = createZoomPan(photoModalImgWrapThermal, photoModalImgThermal);
+
+const photoModalImgWrapWide = document.getElementById("photoModalImgWrapWide"); const photoModalImgWide = document.getElementById("photoModalImgWide"); const photoModalZoomPanWide = createZoomPan(photoModalImgWrapWide, photoModalImgWide);
+
+const editorPhotoWrapThermal = document.getElementById("editorPhotoWrapThermal"); const editorPhotoImgThermal = document.getElementById("editorPhotoImgThermal"); const editorPhotoZoomPanThermal = createZoomPan(editorPhotoWrapThermal, editorPhotoImgThermal);
+
+const editorPhotoWrapWide = document.getElementById("editorPhotoWrapWide"); const editorPhotoImgWide = document.getElementById("editorPhotoImgWide"); const editorPhotoZoomPanWide = createZoomPan(editorPhotoWrapWide, editorPhotoImgWide);
+
+// Fills one image/file/distance trio from a {photo, distance} nearest-photo // result (or clears it to "No photos indexed" if null). Shared by both the // editor panel and the modal, for both the thermal and wide-lens columns. function populatePhotoSlot(imgEl, zoomPan, fileEl, distEl, result) { if (!result) { fileEl.textContent = "No photos indexed"; distEl.textContent = ""; distEl.classList.remove("far"); imgEl.removeAttribute("src"); return; } const { photo, distance } = result; imgEl.src = ${PHOTOS_BASE}/${photo.path}; imgEl.alt = photo.file; zoomPan.reset(); fileEl.textContent = photo.file;
+
+const distText = distance < 1 ? ${(distance * 100).toFixed(0)}cm : ${distance.toFixed(1)}m; if (distance > PHOTO_DISTANCE_WARN_METERS) { distEl.textContent = ~${distText} away; distEl.classList.add("far"); } else { distEl.textContent = ${distText} away; distEl.classList.remove("far"); } }
+
+// Populates the editor's embedded photo panel with the nearest thermal- // flight AND nearest wide-lens-flight photo to this point feature's // coordinates. Reuses the same indexes/lookup used by the standalone // "Photo" tool, so both stay in sync automatically. let lastEditorPhotoResultThermal = null; let lastEditorPhotoResultWide = null;
+
+async function updateEditorPhoto(feature) { const coord = feature.getGeometry().getCoordinates(); const [lon, lat] = ol.proj.toLonLat(coord);
+
+const fileElThermal = document.getElementById("editorPhotoFileThermal"); const distElThermal = document.getElementById("editorPhotoDistanceThermal"); const fileElWide = document.getElementById("editorPhotoFileWide"); const distElWide = document.getElementById("editorPhotoDistanceWide");
+
+fileElThermal.textContent = "Loading..."; distElThermal.textContent = ""; distElThermal.classList.remove("far"); fileElWide.textContent = "Loading..."; distElWide.textContent = ""; distElWide.classList.remove("far"); lastEditorPhotoResultThermal = null; lastEditorPhotoResultWide = null;
+
+try { const { thermalIndex, wideIndex } = await loadBothPhotoIndexes();
+
+lastEditorPhotoResultThermal = findNearestPhoto(lon, lat, thermalIndex);
+populatePhotoSlot(editorPhotoImgThermal, editorPhotoZoomPanThermal, fileElThermal, distElThermal, lastEditorPhotoResultThermal);
+
+lastEditorPhotoResultWide = findNearestPhoto(lon, lat, wideIndex);
+populatePhotoSlot(editorPhotoImgWide, editorPhotoZoomPanWide, fileElWide, distElWide, lastEditorPhotoResultWide);
+} catch (err) { fileElThermal.textContent = "Error loading photo"; fileElWide.textContent = "Error loading photo"; } }
+
+// Clicking either small editor thumbnail opens both photos full-size in the // existing zoomable modal — no need to re-run the nearest-photo lookup, // we already have both results from when the thumbnails were populated. editorPhotoWrapThermal.addEventListener("click", function () { if (editorPhotoZoomPanThermal.wasDragged()) return; openPhotoModal(lastEditorPhotoResultThermal, lastEditorPhotoResultWide); }); editorPhotoWrapWide.addEventListener("click", function () { if (editorPhotoZoomPanWide.wasDragged()) return; openPhotoModal(lastEditorPhotoResultThermal, lastEditorPhotoResultWide); });
+
+function openPhotoModal(thermalResult, wideResult) { const backdrop = document.getElementById("photoModalBackdrop");
+
+populatePhotoSlot( photoModalImgThermal, photoModalZoomPanThermal, document.getElementById("photoModalFileThermal"), document.getElementById("photoModalDistanceThermal"), thermalResult ); populatePhotoSlot( photoModalImgWide, photoModalZoomPanWide, document.getElementById("photoModalFileWide"), document.getElementById("photoModalDistanceWide"), wideResult );
+
+backdrop.classList.add("open");
+
+requestAnimationFrame(() => { photoModalZoomPanThermal.reset(); photoModalZoomPanWide.reset(); }); }
+
+function closePhotoModal() { document.getElementById("photoModalBackdrop").classList.remove("open"); }
+
+document.getElementById("photoModalClose").onclick = closePhotoModal; document.getElementById("photoModalBackdrop").onclick = function (e) { if (e.target === this) closePhotoModal(); };
+
+async function handlePhotoClick(coordinate) { const [lon, lat] = ol.proj.toLonLat(coordinate); try { const { thermalIndex, wideIndex } = await loadBothPhotoIndexes(); const thermalResult = findNearestPhoto(lon, lat, thermalIndex); const wideResult = findNearestPhoto(lon, lat, wideIndex); openPhotoModal(thermalResult, wideResult); } catch (err) { openPhotoModal(null, null); } }
+
+function activatePhotoTool(btn) { clearInteractions(); closeEditor(); photoModeActive = true; loadBothPhotoIndexes(); // kick off loading early so the first click doesn't wait showPlacementHint("Click anywhere to see the nearest photos"); setActiveButton(btn); }
+
+function deactivatePhotoTool() { photoModeActive = false; hidePlacementHint(); }
+
+document.getElementById("tool-photo").onclick = (e) => activatePhotoTool(e.currentTarget);
+
+document.getElementById("legendBar").style.background = legendGradientCss; document.getElementById("legendMin").textContent = VMIN; document.getElementById("legendMax").textContent = VMAX;
+
+// ========================== // WIDE-LENS COMPARISON LAYER (swipe reveal) // ==========================
+
+// EDIT THIS once you've uploaded the wide-lens orthomosaic via FTP: const WIDE_COG_URL = "/data/vulcan/wide_vulcan.tiff";
+
+const wideTileURL = ${TITILER_BASE}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodeURIComponent(WIDE_COG_URL)};
+
+const wideLayer = new ol.layer.Tile({ source: new ol.source.XYZ({ url: wideTileURL, crossOrigin: "anonymous" }), opacity: 1 }); // Insert directly above the thermal layer (index 1) rather than on top of // everything, so annotations/rows/columns/measure overlays stay visible // above the swipe comparison instead of being covered by it. map.getLayers().insertAt(2, wideLayer);
+
+// Clips wideLayer's rendered canvas to only the region left of the slider // handle each frame, so everything right of the handle still shows // whatever's underneath (the thermal layer) unobstructed. Uses // ol.render.getRenderPixel rather than raw slider-percentage-of-CSS-width // math so this stays correct on high-DPI displays too. const swipeSlider = document.getElementById("swipeSlider");
+
+wideLayer.on("prerender", function (event) { const ctx = event.context; const mapSize = map.getSize(); const width = mapSize[0] * (swipeSlider.value / 100);
+
+const tl = ol.render.getRenderPixel(event, [width, 0]); const bl = ol.render.getRenderPixel(event, [width, mapSize[1]]); const tr = ol.render.getRenderPixel(event, [mapSize[0], 0]); const br = ol.render.getRenderPixel(event, [mapSize[0], mapSize[1]]);
+
+ctx.save(); ctx.beginPath(); ctx.moveTo(tl[0], tl[1]); ctx.lineTo(bl[0], bl[1]); ctx.lineTo(br[0], br[1]); ctx.lineTo(tr[0], tr[1]); ctx.closePath(); ctx.clip(); });
+
+wideLayer.on("postrender", function (event) { event.context.restore(); });
+
+swipeSlider.addEventListener("input", function () { map.render(); });
+
+// ========================== // TOOLS: select + draw // ==========================
+
+const selectInteraction = new ol.interaction.Select({ layers: [vectorLayer] }); selectInteraction.on("select", (e) => { if (e.selected.length > 0) { openEditor(e.selected[0]); } else { closeEditor(); } });
+
+const modifyInteraction = new ol.interaction.Modify({ source: vectorSource }); const translateInteraction = new ol.interaction.Translate({ layers: [vectorLayer] });
+
+function refreshEditorForFeature(feature) { if (activeFeature !== feature) return; editorOverlay.setPosition(getFeatureAnchor(feature)); if (feature.getGeometry().getType() === "Point") { updateCoordsAndTemp(feature); updateEditorPhoto(feature); } }
+
+modifyInteraction.on("modifyend", (e) => { e.features.forEach((f) => refreshEditorForFeature(f)); }); translateInteraction.on("translateend", (e) => { e.features.forEach((f) => refreshEditorForFeature(f)); });
+
+let drawInteraction = null; let activeToolBtn = null;
+
+function setActiveButton(btn) { if (activeToolBtn) activeToolBtn.classList.remove("active"); activeToolBtn = btn; if (activeToolBtn) activeToolBtn.classList.add("active"); }
+
+function clearInteractions() { if (pendingPerpendicular) { pendingPerpendicular = null; map.getTargetElement().style.cursor = ""; hidePlacementHint(); } if (drawInteraction) { map.removeInteraction(drawInteraction); drawInteraction = null; } if (measureDraw) { map.removeInteraction(measureDraw); measureDraw = null; hidePlacementHint(); clearMeasurements(); } if (temperatureModeActive) { deactivateTemperatureTool(); } if (photoModeActive) { deactivatePhotoTool(); } map.removeInteraction(selectInteraction); map.removeInteraction(modifyInteraction); map.removeInteraction(translateInteraction); }
+
+function activateSelect(btn) { clearInteractions(); map.addInteraction(selectInteraction); map.addInteraction(modifyInteraction); map.addInteraction(translateInteraction); setActiveButton(btn); }
+
+function activateDraw(type, btn) { clearInteractions(); closeEditor();
+
+let geometryType = type; if (type === "Rectangle") geometryType = "Circle";
+
+drawInteraction = new ol.interaction.Draw({ source: vectorSource, type: geometryType, geometryFunction: type === "Rectangle" ? ol.interaction.Draw.createBox() : undefined });
+
+drawInteraction.on("drawend", (e) => { e.feature.set("color", currentColor); e.feature.set("shape", type); setTimeout(() => openEditor(e.feature), 0); });
+
+map.addInteraction(drawInteraction); setActiveButton(btn); }
+
+function nextAnnotationNumber(shape, label) { let max = 0; const re = new RegExp("^" + label + " (\d+)$"); vectorSource.getFeatures().forEach((f) => { const m = re.exec(f.get("name") || ""); if (m) max = Math.max(max, parseInt(m[1], 10)); }); return max + 1; }
+
+function activateLineTool(shape, label, btn) { clearInteractions(); closeEditor();
+
+drawInteraction = new ol.interaction.Draw({ source: vectorSource, type: "LineString", minPoints: 2, maxPoints: 2 });
+
+drawInteraction.on("drawend", (e) => { e.feature.set("color", currentColor); e.feature.set("shape", shape); e.feature.set("name", label + " " + nextAnnotationNumber(shape, label)); e.feature.set("description", []); setTimeout(() => openEditor(e.feature), 0); });
+
+map.addInteraction(drawInteraction); setActiveButton(btn); }
+
+function activateRowTool(btn) { activateLineTool("Row", "Row", btn); }
+
+function activateColumnTool(btn) { activateLineTool("Column", "Column", btn); }
+
+document.getElementById("tool-select").onclick = (e) => activateSelect(e.currentTarget); document.getElementById("tool-point").onclick = (e) => activateDraw("Point", e.currentTarget); document.getElementById("tool-line").onclick = (e) => activateDraw("LineString", e.currentTarget); document.getElementById("tool-polygon").onclick = (e) => activateDraw("Polygon", e.currentTarget); document.getElementById("tool-rectangle").onclick = (e) => activateDraw("Rectangle", e.currentTarget); document.getElementById("tool-circle").onclick = (e) => activateDraw("Circle", e.currentTarget); document.getElementById("tool-row").onclick = (e) => activateRowTool(e.currentTarget); document.getElementById("tool-column").onclick = (e) => activateColumnTool(e.currentTarget);
+
+// start in select mode activateSelect(document.getElementById("tool-select"));
+
+// ========================== // COLOR PICKER // ==========================
+
+const colorInput = document.getElementById("colorInput"); const colorSwatch = document.getElementById("colorSwatch");
+
+document.getElementById("colorBtn").onclick = () => colorInput.click(); colorInput.oninput = function () { currentColor = this.value; colorSwatch.style.background = currentColor; };
+
+// ========================== // UNDO / REDO (add + delete of whole features) // ==========================
+
+let undoStack = []; let redoStack = []; let suppressHistory = false;
+
+vectorSource.on("addfeature", (e) => { if (suppressHistory) return; undoStack.push({ type: "add", feature: e.feature }); redoStack = []; });
+
+vectorSource.on("removefeature", (e) => { if (suppressHistory) return; undoStack.push({ type: "remove", feature: e.feature }); redoStack = []; });
+
+document.getElementById("tool-undo").onclick = () => { const action = undoStack.pop(); if (!action) return; suppressHistory = true; if (action.type === "add") { vectorSource.removeFeature(action.feature); } else { vectorSource.addFeature(action.feature); } suppressHistory = false; redoStack.push(action); closeEditor(); };
+
+document.getElementById("tool-redo").onclick = () => { const action = redoStack.pop(); if (!action) return; suppressHistory = true; if (action.type === "add") { vectorSource.addFeature(action.feature); } else { vectorSource.removeFeature(action.feature); } suppressHistory = false; undoStack.push(action); closeEditor(); };
+
+// ========================== // CLEAR / EXPORT // ==========================
+
+document.getElementById("tool-clear").onclick = function () { vectorSource.clear(); clearMeasurements(); undoStack = []; redoStack = []; closeEditor(); };
+
+document.getElementById("tool-export").onclick = function () { const format = new ol.format.GeoJSON(); const data = format.writeFeatures(vectorSource.getFeatures(), { featureProjection: "EPSG:3857" }); const blob = new Blob([data], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "annotations.geojson"; a.click(); };
+
+// ========================== // EXPORT ZIP: nearest thermal photo + GPS + temperature for every point // ========================== document.getElementById("tool-export-zip").onclick = async function () { const btn = this; const label = document.getElementById("exportZipLabel"); if (btn.dataset.busy === "1") return; if (typeof JSZip === "undefined") { alert("The ZIP library didn't load (check your connection) - reload the page and try again."); return; }
+
+const points = vectorSource.getFeatures().filter( (f) => f.getGeometry() && f.getGeometry().getType() === "Point" ); if (points.length === 0) { alert("There are no point annotations to export."); return; }
+
+btn.dataset.busy = "1"; const setLabel = (t) => { label.textContent = t; }; // Runs fn over items with limited concurrency. const pool = async (items, limit, fn) => { let i = 0; const worker = async () => { while (i < items.length) { const k = i++; await fn(items[k], k); } }; await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker)); };
+
+try { setLabel("Indexing..."); const thermalIndex = await loadPhotoIndex(PHOTOS_INDEX_URL);
+
+// 1) Per annotation: GPS, nearest photo, temperature
+const rows = points.map((f) => {
+  const [lon, lat] = ol.proj.toLonLat(f.getGeometry().getCoordinates());
+  const near = findNearestPhoto(lon, lat, thermalIndex);
+  return { f, lon, lat, near, temp: null };
+});
+let done = 0;
+await pool(rows, 8, async (r) => {
+  try {
+    const res = await fetch(`${TITILER_BASE}/cog/point/${r.lon},${r.lat}?url=${encodeURIComponent(COG_URL)}`);
+    if (res.ok) {
+      const d = await res.json();
+      const v = d.values && d.values[0];
+      if (v !== null && v !== undefined) r.temp = v;
+    }
+  } catch (e) {}
+  setLabel("Temp " + (++done) + "/" + rows.length);
+});
+
+// 2) Unique photos -> zip names
+const zip = new JSZip();
+const photoFolder = zip.folder("photos");
+const zipNameByPath = {};
+const usedNames = {};
+const unique = [];
+rows.forEach((r) => {
+  if (!r.near || !r.near.photo) return;
+  const p = r.near.photo;
+  if (zipNameByPath[p.path]) return;
+  let name = p.file;
+  if (usedNames[name]) name = p.batch + "_" + p.file;
+  usedNames[name] = true;
+  zipNameByPath[p.path] = name;
+  unique.push(p);
+});
+
+const failed = {};
+done = 0;
+await pool(unique, 6, async (p) => {
+  try {
+    const res = await fetch(`${PHOTOS_BASE}/${p.path.split("/").map(encodeURIComponent).join("/")}`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    photoFolder.file(zipNameByPath[p.path], await res.blob(), { compression: "STORE" });
+  } catch (e) {
+    failed[p.path] = true;
+  }
+  setLabel("Photos " + (++done) + "/" + unique.length);
+});
+
+// 3) The .txt report: one line per annotation
+const sevName = { low: "Low", medium: "Medium", high: "High" };
+const lines = rows.map((r) => {
+  const p = r.near && r.near.photo;
+  const file = p ? zipNameByPath[p.path] + (failed[p.path] ? " (DOWNLOAD FAILED)" : "") : "no photo";
+  const sev = r.f.get("severity");
+  return file +
+    "  |  GPS: " + r.lat.toFixed(6) + ", " + r.lon.toFixed(6) +
+    "  |  Temp: " + (r.temp === null ? "n/a" : r.temp.toFixed(1) + " C") +
+    "  |  Severity: " + (sev ? (sevName[sev] || sev) : "none");
+});
+zip.file("annotations.txt", lines.join("\r\n"));
+
+// 4) Build & download
+setLabel("Zipping...");
+const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (m) => setLabel("Zip " + Math.round(m.percent) + "%"));
+const a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "annotations_export.zip";
+document.body.appendChild(a);
+a.click();
+a.remove();
+setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+if (Object.keys(failed).length) alert(Object.keys(failed).length + " photo(s) failed to download; they're marked in annotations.txt.");
+} catch (err) { alert("ZIP export failed: " + err.message); } finally { btn.dataset.busy = "0"; setLabel("ZIP"); } };
+
+// ========================== // SEARCH: find an annotation by coords / temp / photo filename / row / severity // ========================== (function () { const btn = document.getElementById("tool-search"); const panel = document.getElementById("searchPanel"); const input = document.getElementById("searchInput"); const statusEl = document.getElementById("searchStatus"); const resultsEl = document.getElementById("searchResults"); const tempCache = {}; // "lon,lat" -> number | null const photoCache = {}; // "lon,lat" -> filename let thermalIdx = null; let tempsLoading = false; let selIndex = -1; let currentResults = []; const sevName = { low: "Low", medium: "Medium", high: "High" };
+
+const keyOf = (lon, lat) => lon.toFixed(7) + "," + lat.toFixed(7);
+
+function getItems() { return vectorSource.getFeatures() .filter((f) => f.getGeometry() && f.getGeometry().getType() === "Point") .map((f) => { const [lon, lat] = ol.proj.toLonLat(f.getGeometry().getCoordinates()); const k = keyOf(lon, lat); if (thermalIdx && photoCache[k] === undefined) { const n = findNearestPhoto(lon, lat, thermalIdx); photoCache[k] = n && n.photo ? n.photo.file : ""; } return { f, lon, lat, k, file: photoCache[k] || "", temp: tempCache[k], // undefined = not loaded yet name: f.get("name") || "", row: f.get("row") || "", col: f.get("column") || "", sev: f.get("severity") || "" }; }); }
+
+async function ensureTemps() { if (tempsLoading) return; const missing = getItems().filter((it) => it.temp === undefined); if (!missing.length) return; tempsLoading = true; let done = 0; let i = 0; const worker = async () => { while (i < missing.length) { const it = missing[i++]; try { const res = await fetch(${TITILER_BASE}/cog/point/${it.lon},${it.lat}?url=${encodeURIComponent(COG_URL)}); const d = res.ok ? await res.json() : null; const v = d && d.values && d.values[0]; tempCache[it.k] = (v === null || v === undefined) ? null : v; } catch (e) { tempCache[it.k] = null; } done++; if (panel.classList.contains("open") && !input.value.trim()) { statusEl.textContent = "Loading temperatures " + done + "/" + missing.length + "..."; } } }; await Promise.all(Array.from({ length: 8 }, worker)); tempsLoading = false; if (panel.classList.contains("open")) runSearch(); }
+
+function fieldsOf(it) { return { file: it.file.toLowerCase(), lat: it.lat.toFixed(6), lon: it.lon.toFixed(6), temp: typeof it.temp === "number" ? it.temp.toFixed(1) : "", name: it.name.toLowerCase(), rc: ("row " + it.row + " column " + it.col).toLowerCase(), sev: (it.sev ? (sevName[it.sev] || it.sev) : "").toLowerCase() }; }
+
+// "row 6" / "column 2" (or "col 2") are exact filters; the rest are free tokens. function parseQuery(q) { let rest = q.toLowerCase(); let row = null, col = null; rest = rest.replace(/\brow\s*(\d+)/, (m, n) => { row = n; return " "; }); rest = rest.replace(/\b(?:column|col)\s*(\d+)/, (m, n) => { col = n; return " "; }); const tokens = rest.replace(/°c|°/g, " ").split(/[\s,;]+/).filter(Boolean); return { tokens, row, col }; }
+
+function search(q) { const pq = parseQuery(q); const tokens = pq.tokens; if (!tokens.length && pq.row === null && pq.col === null) return []; const nums = q.match(/-?\d+.\d+/g); const items = getItems(); const out = []; for (const it of items) { const fl = fieldsOf(it); let score = 0, ok = true; if (pq.row !== null) { if (String(it.row).trim() === pq.row) score += 3; else ok = false; } if (ok && pq.col !== null) { if (String(it.col).trim() === pq.col) score += 3; else ok = false; } for (const t of ok ? tokens : []) { let s = 0; if (fl.file.includes(t)) s = Math.max(s, 3); if (fl.temp && fl.temp.includes(t)) s = Math.max(s, fl.temp.startsWith(t) ? 3 : 2); if (fl.name.includes(t) || fl.rc.includes(t) || fl.sev.includes(t)) s = Math.max(s, 2); if (fl.lat.includes(t) || fl.lon.includes(t)) s = Math.max(s, 1); if (!s) { ok = false; break; } score += s; } let dist = null; // A pasted "lat, lon" pair also matches by proximity (within 2 m). if (!ok && pq.row === null && pq.col === null && nums && nums.length >= 2) { const d = haversineMeters(it.lon, it.lat, parseFloat(nums[1]), parseFloat(nums[0])); if (d <= 2) { ok = true; dist = d; score = 10 - d; } } if (ok) out.push({ it, score, dist }); } out.sort((a, b) => b.score - a.score); return out; }
+
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """ }[c])); function hl(text, tokens) { let h = esc(text); for (const t of tokens) { if (!t) continue; const re = new RegExp("(" + t.replace(/[.*+?^{}()|[\]\\]/g, "\\&") + ")", "ig"); h = h.replace(re, "<mark>$1</mark>"); } return h; }
+
+function goTo(it) { const view = map.getView(); view.animate({ center: getFeatureAnchor(it.f), zoom: Math.max(view.getZoom() || 0, 19), duration: 350 }); openEditor(it.f); }
+
+function render(results, tokens) { currentResults = results; selIndex = results.length ? 0 : -1; resultsEl.innerHTML = ""; results.slice(0, 50).forEach((r, i) => { const it = r.it; const el = document.createElement("div"); el.className = "sr-item" + (i === 0 ? " sel" : ""); const sevKey = it.sev; el.innerHTML = '<div class="sr-top"><span>' + hl(it.name || "Untitled", tokens) + (it.row || it.col ? ' <span style="font-weight:400;color:var(--muted)">(' + hl("Row " + (it.row || "-") + ", Column " + (it.col || "-"), tokens) + ")</span>" : "") + "</span>" + (sevKey ? '<span class="sr-sev ' + esc(sevKey) + '">' + esc(sevName[sevKey] || sevKey) + "</span>" : "") + "</div>" + '<div class="sr-sub">' + hl(it.file || "no photo", tokens) + "</div>" + '<div class="sr-sub">' + hl(it.lat.toFixed(6) + ", " + it.lon.toFixed(6), tokens) + "  |  " + (typeof it.temp === "number" ? hl(it.temp.toFixed(1), tokens) + " °C" : (it.temp === undefined ? "temp loading..." : "temp n/a")) + (r.dist !== null ? "  |  " + r.dist.toFixed(1) + " m from typed coords" : "") + "</div>"; el.onclick = () => goTo(it); el.onmouseenter = () => setSel(i); resultsEl.appendChild(el); }); }
+
+function setSel(i) { const els = resultsEl.children; if (!els.length) return; selIndex = Math.max(0, Math.min(els.length - 1, i)); for (let j = 0; j < els.length; j++) els[j].classList.toggle("sel", j === selIndex); els[selIndex].scrollIntoView({ block: "nearest" }); }
+
+function runSearch() { const q = input.value.trim(); const pq = parseQuery(q); const tokens = pq.tokens;
+
+if (!tokens.length && pq.row === null && pq.col === null) { resultsEl.innerHTML = ""; currentResults = []; const total = getItems().length; if (!tempsLoading) { statusEl.textContent = total + " point annotations. Type coords, temperature, filename, row or severity."; } return; }
+
+// Annotations (matches name, row/col, severity, coords, temp, nearest photo filename) const res = search(q); render(res, tokens);
+
+// Photo filenames straight from the thermal index const photos = (pq.row === null && pq.col === null && thermalIdx) ? thermalIdx.filter((p) => tokens.every((t) => p.file.toLowerCase().includes(t))).slice(0, 50) : [];
+
+photos.forEach((p) => { const el = document.createElement("div"); el.className = "sr-item"; el.innerHTML = '<div class="sr-top"><span>\ud83d\udcf7 Photo</span></div>' + '<div class="sr-sub">' + hl(p.file, tokens) + "</div>" + '<div class="sr-sub">' + p.lat.toFixed(6) + ", " + p.lon.toFixed(6) + "</div>"; el.onclick = async () => { map.getView().animate({ center: ol.proj.fromLonLat([p.lon, p.lat]), zoom: 20, duration: 350 }); const wideIndex = await loadPhotoIndex(PHOTOS_INDEX_URL_WIDE).catch(() => []); openPhotoModal({ photo: p, distance: 0 }, findNearestPhoto(p.lon, p.lat, wideIndex)); }; resultsEl.appendChild(el); });
+
+const loadingNote = tempsLoading ? " - temperatures still loading" : ""; statusEl.textContent = (res.length + photos.length) ? res.length + " annotation(s), " + photos.length + " photo(s)" + loadingNote : "No match" + (tempsLoading ? " yet" : "") + loadingNote; } async function openPanel() { panel.classList.add("open"); btn.classList.add("active"); input.focus(); input.select(); statusEl.textContent = "Loading..."; try { thermalIdx = await loadPhotoIndex(PHOTOS_INDEX_URL); } catch (e) { thermalIdx = []; } runSearch(); ensureTemps(); } function closePanel() { panel.classList.remove("open"); btn.classList.remove("active"); }
+
+btn.onclick = () => (panel.classList.contains("open") ? closePanel() : openPanel()); input.addEventListener("input", () => { runSearch(); }); input.addEventListener("keydown", (e) => { if (e.key === "Escape") { closePanel(); } else if (e.key === "ArrowDown") { e.preventDefault(); setSel(selIndex + 1); } else if (e.key === "ArrowUp") { e.preventDefault(); setSel(selIndex - 1); } else if (e.key === "Enter" && currentResults[selIndex]) { goTo(currentResults[selIndex].it); } }); })();
+
+// ========================== // PANELS: a square on every individual solar panel (toggle) // ========================== // panels.geojson is produced on the server by detect_panels.py from the // thermal orthomosaic. One polygon per panel, with tmean / tmax properties. const PANELS_URL = ${TITILER_BASE}/vulcan/panels.geojson;
+
+const panelsSource = new ol.source.Vector(); const panelStyle = [ new ol.style.Style({ stroke: new ol.style.Stroke({ color: "rgba(0,0,0,0.55)", width: 2.4 }) }), new ol.style.Style({ stroke: new ol.style.Stroke({ color: "rgba(255,255,255,0.95)", width: 1.1 }) }) ]; const panelsLayer = new ol.layer.Vector({ source: panelsSource, style: panelStyle, visible: false, minZoom: 16, // too many tiny squares when zoomed far out updateWhileInteracting: false, updateWhileAnimating: false }); // above the thermal / wide-lens imagery, below annotations and measurements map.getLayers().insertAt(3, panelsLayer);
+
+(function () { const btn = document.getElementById("tool-panels"); const label = document.getElementById("panelsLabel"); let loaded = false, loading = false;
+
+async function loadPanels() { if (loaded || loading) return loaded; loading = true; label.textContent = "Loading..."; try { const res = await fetch(PANELS_URL, { cache: "no-store" }); if (!res.ok) throw new Error("HTTP " + res.status); const feats = new ol.format.GeoJSON().readFeatures(await res.text(), { featureProjection: "EPSG:3857" }); panelsSource.addFeatures(feats); loaded = true; } catch (err) { alert("Couldn't load the panel squares (" + err.message + ").\nThe file panels.geojson must exist on the server at /var/www/tiles/vulcan/."); } loading = false; label.textContent = "Panels"; return loaded; }
+
+btn.onclick = async function () { if (panelsLayer.getVisible()) { panelsLayer.setVisible(false); btn.classList.remove("active"); return; } if (!(await loadPanels())) return; panelsLayer.setVisible(true); btn.classList.add("active"); if ((map.getView().getZoom() || 0) < 16) { const ext = panelsSource.getExtent(); if (ext && isFinite(ext[0])) map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 19, duration: 400 }); } }; })();
+
+document.getElementById("tool-import").onclick = function () { document.getElementById("importFileInput").click(); };
+
+document.getElementById("importFileInput").onchange = function (e) { const file = e.target.files[0]; if (!file) return;
+
+const reader = new FileReader(); reader.onload = function (evt) { try { const format = new ol.format.GeoJSON(); // The exported file's coordinates are plain lon/lat (GeoJSON's default // dataProjection, EPSG:4326) since that's what writeFeatures produced // when we told it the source features were in EPSG:3857. Reading // back with featureProjection: "EPSG:3857" reprojects those lon/lat // coordinates into the map's own projection, undoing that conversion. const features = format.readFeatures(evt.target.result, { featureProjection: "EPSG:3857" });
+
+if (features.length === 0) {
+    alert("No features found in that file.");
+    return;
+  }
+
+  // Feature properties (name, description, shape, color, row, column,
+  // hidden) were written directly into GeoJSON "properties" on export,
+  // so ol.format.GeoJSON restores them automatically on read — no
+  // manual remapping needed here.
+  vectorSource.addFeatures(features);
+
+  // Zoom/pan to fit whatever was just imported, so it's immediately visible
+  // even if it's outside the current view.
+  const extent = ol.extent.createEmpty();
+  features.forEach((f) => ol.extent.extend(extent, f.getGeometry().getExtent()));
+  if (ol.extent.getWidth(extent) > 0 || ol.extent.getHeight(extent) > 0) {
+    map.getView().fit(extent, { padding: [60, 60, 60, 60], maxZoom: 19, duration: 400 });
+  }
+} catch (err) {
+  alert("Couldn't parse that file as GeoJSON: " + err.message);
+} finally {
+  // reset so selecting the same file again still fires 'onchange'
+  e.target.value = "";
+}
+}; reader.readAsText(file); };
+
+// ========================== // ANNOTATIONS LIST PANEL // ==========================
+
+function shapeIcon(shape) { switch (shape) { case "Point": return "📍"; case "LineString": return "📏"; case "Row": return "📏"; case "Column": return "📶"; case "Polygon": return "⬡"; case "Rectangle": return "▭"; case "Circle": return "⭕"; default: return "•"; } }
+
+const GROUP_ORDER = ["Point", "Row", "Column", "LineString", "Polygon", "Rectangle", "Circle"]; const GROUP_LABEL = { Point: "Points", Row: "Rows", Column: "Columns", LineString: "Lines", Polygon: "Polygons", Rectangle: "Rectangles", Circle: "Circles", Other: "Other" }; const collapsedGroups = {};
+
+// Higher rank sorts first when "Sort by severity" is enabled. Features // without a severity (or non-point shapes) sort last, in their original order. const SEVERITY_RANK = { high: 3, medium: 2, low: 1 }; let sortBySeverity = false;
+
+function sortFeaturesBySeverity(list) { return list .map((f, i) => ({ f, i, rank: SEVERITY_RANK[f.get("severity")] || 0 })) .sort((a, b) => (b.rank - a.rank) || (a.i - b.i)) .map((entry) => entry.f); }
+
+function buildAnnItem(feature) { const item = document.createElement("div"); item.className = "ann-item";
+
+const isPoint = feature.getGeometry().getType() === "Point"; const severity = feature.get("severity"); const severityColor = (isPoint && severity && SEVERITY_COLORS[severity]) ? SEVERITY_COLORS[severity] : null;
+
+if (isSeverityFilteredOut(feature)) { item.classList.add("severity-filtered"); }
+
+const swatch = document.createElement("span"); swatch.className = "ann-swatch"; swatch.style.background = severityColor || feature.get("color") || currentColor; if (severityColor) swatch.title = "Severity: " + severity;
+
+const name = document.createElement("span"); const nameVal = feature.get("name"); name.className = "ann-name" + (nameVal ? "" : " untitled"); name.textContent = nameVal || ("Untitled " + (GROUP_LABEL[feature.get("shape")] || "shape").replace(/s$/, ""));
+
+const visBtn = document.createElement("button"); const isHidden = !!feature.get("hidden"); visBtn.className = "ann-btn hidden-toggle" + (isHidden ? " is-hidden" : ""); visBtn.title = isHidden ? "Show on map" : "Hide from map"; visBtn.textContent = isHidden ? "🙈" : "👁"; visBtn.onclick = (evt) => { evt.stopPropagation(); feature.set("hidden", !feature.get("hidden")); vectorLayer.changed(); renderAnnotationsList(); };
+
+const delBtn = document.createElement("button"); delBtn.className = "ann-btn ann-delete"; delBtn.title = "Delete"; delBtn.textContent = "\u00d7"; delBtn.onclick = (evt) => { evt.stopPropagation(); vectorSource.removeFeature(feature); };
+
+item.appendChild(swatch); item.appendChild(name); item.appendChild(visBtn); item.appendChild(delBtn);
+
+item.onclick = () => { map.getView().animate({ center: getFeatureAnchor(feature), duration: 300 }); openEditor(feature); };
+
+return item; }
+
+// Counts point features by severity, for the severity legend badges. function computeSeverityCounts() { const counts = { low: 0, medium: 0, high: 0 }; vectorSource.getFeatures().forEach((f) => { if (f.getGeometry().getType() === "Point") { const s = f.get("severity"); if (s && Object.prototype.hasOwnProperty.call(counts, s)) counts[s]++; } }); return counts; }
+
+function updateSeverityLegend() { const counts = computeSeverityCounts(); document.getElementById("sevCountLow").textContent = counts.low; document.getElementById("sevCountMedium").textContent = counts.medium; document.getElementById("sevCountHigh").textContent = counts.high; }
+
+function renderAnnotationsList() { const container = document.getElementById("annotationsList"); const features = vectorSource.getFeatures(); container.innerHTML = "";
+
+document.getElementById("annotationsTotalCount").textContent = features.length; updateSeverityLegend();
+
+if (features.length === 0) { const empty = document.createElement("div"); empty.id = "annotationsEmpty"; empty.textContent = "No annotations yet."; container.appendChild(empty); return; }
+
+const groups = {}; features.forEach((f) => { const key = f.get("shape") || "Other"; if (!groups[key]) groups[key] = []; groups[key].push(f); });
+
+const orderedKeys = GROUP_ORDER.filter((k) => groups[k]).concat( Object.keys(groups).filter((k) => !GROUP_ORDER.includes(k)) );
+
+orderedKeys.forEach((key) => { const groupFeatures = sortBySeverity ? sortFeaturesBySeverity(groups[key]) : groups[key]; const groupEl = document.createElement("div"); groupEl.className = "ann-group" + (collapsedGroups[key] ? " collapsed" : "");
+
+const header = document.createElement("div");
+header.className = "ann-group-header";
+header.innerHTML =
+  '<span class="chevron">▾</span>' +
+  '<span>' + shapeIcon(key) + '</span>' +
+  '<span>' + (GROUP_LABEL[key] || key) + '</span>' +
+  '<span class="ann-group-count">' + groupFeatures.length + '</span>';
+header.onclick = () => {
+  collapsedGroups[key] = !collapsedGroups[key];
+  renderAnnotationsList();
+};
+
+const itemsEl = document.createElement("div");
+itemsEl.className = "ann-group-items";
+groupFeatures.forEach((f) => itemsEl.appendChild(buildAnnItem(f)));
+
+groupEl.appendChild(header);
+groupEl.appendChild(itemsEl);
+container.appendChild(groupEl);
+}); }
+
+vectorSource.on("addfeature", renderAnnotationsList); vectorSource.on("removefeature", renderAnnotationsList);
+
+document.getElementById("listToggle").onclick = function () { this.classList.toggle("active"); document.getElementById("annotationsPanel").classList.toggle("open"); };
+
+document.getElementById("rowColOpacityInput").oninput = function () { rowColOpacity = Number(this.value); vectorLayer.changed(); };
+
+document.getElementById("sortBySeverityToggle").onchange = function () { sortBySeverity = this.checked; renderAnnotationsList(); };
+
+// Severity legend: collapse/expand the button row. document.getElementById("severityLegendHeader").onclick = function () { document.getElementById("severityLegend").classList.toggle("collapsed"); };
+
+// Severity legend: each button is an on/off filter. Turning a severity off // hides those point annotations from the map and dims them in the list — // e.g. turn off Medium and High to see only Low-severity points. document.querySelectorAll(".sev-filter-btn").forEach((btn) => { btn.onclick = () => { const sev = btn.dataset.severity; severityFilter[sev] = !severityFilter[sev]; btn.classList.toggle("active", severityFilter[sev]); vectorLayer.changed(); renderAnnotationsList(); }; });
+
+document.getElementById("clearNamesBtn").onclick = function () { const features = vectorSource.getFeatures(); if (features.length === 0) return; if (!confirm("Remove the name from all " + features.length + " annotation(s)? This cannot be undone.")) return; features.forEach((f) => f.set("name", "")); vectorLayer.changed(); renderAnnotationsList(); if (activeFeature) { document.getElementById("editorName").value = ""; } };
+
+renderAnnotationsList();
+
+// ========================== // THERMAL CONTROLS // ==========================
+
+document.getElementById("opacity").oninput = function () { thermalLayer.setOpacity(Number(this.value)); };
+
+document.getElementById("brightness").oninput = function () { brightness = Number(this.value); thermalLayer.changed(); };
+
+document.getElementById("contrast").oninput = function () { contrast = Number(this.value); thermalLayer.changed(); };
+
+document.getElementById("resetOpacity").onclick = function () { document.getElementById("opacity").value = 1; thermalLayer.setOpacity(1); };
+
+document.getElementById("resetBrightness").onclick = function () { brightness = 0; document.getElementById("brightness").value = 0; thermalLayer.changed(); };
+
+document.getElementById("resetContrast").onclick = function () { contrast = 100; document.getElementById("contrast").value = 100; thermalLayer.changed(); };
+
+document.getElementById("settingsToggle").onclick = function () { document.getElementById("thermalPanel").classList.toggle("open"); };
+
+document.getElementById("fullscreenBtn").onclick = function () { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+
+// ========================== // DEFAULT ANNOTATIONS (auto-loaded once, for THIS deployment only) // ==========================
+
+// Point this at wherever you've uploaded this site's exported .geojson on // the server. Leave as "" to disable auto-loading — e.g. if you copy this // index.html as a blank template for a different site. const DEFAULT_ANNOTATIONS_URL = "https://tiles.helioscan.ro/vulcan/annotations/vulcan.geojson";
+
+if (DEFAULT_ANNOTATIONS_URL) { fetch(DEFAULT_ANNOTATIONS_URL) .then((res) => { if (!res.ok) throw new Error("failed to load default annotations (" + res.status + ")"); return res.text(); }) .then((text) => { const format = new ol.format.GeoJSON(); const features = format.readFeatures(text, { featureProjection: "EPSG:3857" }); // Load silently into the undo/redo history so a stray Ctrl+Z can't // wipe out the whole preloaded set. suppressHistory = true; vectorSource.addFeatures(features); suppressHistory = false; }) .catch((err) => { console.warn("No default annotations loaded:", err); }); }
+
+// ========================== // THERMAL ORTHOMOSAIC SWITCH + AUTO-ZOOM // ==========================
+
+// Set to true once thermal_vulcan.tiff has been converted and is on the // server (/data/vulcan/thermal_vulcan.tiff). Until then the thermal layer // is hidden (no failing tile requests) and only the wide-lens mosaic shows. const HAS_THERMAL = true;
+
+if (!HAS_THERMAL) thermalLayer.setVisible(false);
+
+// Zoom to the orthomosaic automatically (no hard-coded coordinates). fetch(${TITILER_BASE}/cog/WebMercatorQuad/tilejson.json?url=${encodeURIComponent(HAS_THERMAL ? COG_URL : WIDE_COG_URL)}) .then((r) => (r.ok ? r.json() : Promise.reject(new Error("tilejson " + r.status)))) .then((tj) => { if (!tj.bounds || tj.bounds.length < 4) return; const ext = ol.proj.transformExtent(tj.bounds, "EPSG:4326", "EPSG:3857"); map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 19 }); }) .catch((err) => console.warn("Couldn't auto-zoom to the orthomosaic:", err));
+
+</script>
+
+</body> </html>
+
+this is my index.html modify it and give it to me FULL UPDATED with any panel_detect.py reference DELETED so i can just copy paste it
+
+
+model avatar
+Looking at your code, I need to:
+
+Remove the Panels tool (button + layer + logic that loads panels.geojson from detect_panels.py)
+Add a Draw Grid tool — click 4 corners, input rows/cols, auto-subdivide
+The code is ~2100 lines so I'll give you the complete updated file. Key changes:
+
+tool-panels button → replaced with tool-grid (Draw Grid)
+Removed panelsSource, panelsLayer, panelStyle, and the entire panels IIFE
+Added grid drawing state machine + bilinear interpolation subdivision
+Added a small grid config popover for rows/cols input
+Here's the full file:
+
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -249,8 +2138,6 @@
     gap:6px;
   }
 
-  /* Keep every row above the scrolling list at its natural height —
-     only #annotationsList should flex/shrink to fit available space. */
   #annotationsPanel h3,
   .severity-legend,
   .sort-toggle-row,
@@ -487,12 +2374,12 @@
     flex-direction:column;
     gap:6px;
     height:300px;
-    overflow: hidden; /* prevents image overflow */
+    overflow: hidden;
     }
   .editor-photo-block img {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* keeps aspect ratio, fits inside */
+    object-fit: contain;
   }
   .editor-photo-label{
     font-size:10.5px;
@@ -1010,6 +2897,131 @@
     color:var(--ink);
     font-weight:600;
   }
+
+  /* ============ GRID DRAWING CONFIG POPOVER ============ */
+  #gridConfigPopover{
+    position:absolute;
+    top:70px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:1001;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:var(--panel-shadow);
+    padding:14px 16px 12px;
+    display:none;
+    width:280px;
+  }
+  #gridConfigPopover.open{ display:block; }
+  #gridConfigPopover h4{
+    margin:0 0 10px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .grid-cfg-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .grid-cfg-row .grid-cfg-field{
+    flex:1;
+  }
+  .grid-cfg-row .grid-cfg-field label{
+    display:block;
+    font-size:11px;
+    font-weight:600;
+    color:var(--muted);
+    margin-bottom:4px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+  .grid-cfg-row .grid-cfg-field input{
+    width:100%;
+    box-sizing:border-box;
+    padding:7px 8px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:13px;
+    color:var(--ink);
+    outline:none;
+  }
+  .grid-cfg-row .grid-cfg-field input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-bg);
+  }
+  #gridConfigPopover .grid-cfg-label-row{
+    margin-bottom:10px;
+  }
+  #gridConfigPopover .grid-cfg-label-row label{
+    display:block;
+    font-size:11px;
+    font-weight:600;
+    color:var(--muted);
+    margin-bottom:4px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+  #gridConfigPopover .grid-cfg-label-row input{
+    width:100%;
+    box-sizing:border-box;
+    padding:7px 8px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    font-size:13px;
+    color:var(--ink);
+    outline:none;
+  }
+  #gridConfigPopover .grid-cfg-label-row input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-bg);
+  }
+  .grid-cfg-actions{
+    display:flex;
+    gap:8px;
+  }
+  .grid-cfg-actions button{
+    flex:1;
+    padding:8px;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    font-size:12.5px;
+    font-weight:600;
+  }
+  #gridStartDrawBtn{
+    background:var(--accent);
+    color:#fff;
+  }
+  #gridStartDrawBtn:hover{ background:#4338ca; }
+  #gridCancelBtn{
+    background:#f3f4f6;
+    color:var(--muted);
+  }
+  #gridCancelBtn:hover{ background:#e5e7eb; color:var(--ink); }
+  .grid-cfg-status{
+    margin-top:8px;
+    font-size:11.5px;
+    color:var(--muted);
+    min-height:14px;
+  }
+
+  /* Grid corner markers via OL overlay */
+  .grid-corner-dot{
+    width:12px;height:12px;
+    margin:-6px 0 0 -6px;
+    border-radius:50%;
+    background:var(--accent);
+    border:2px solid #fff;
+    box-shadow:0 0 6px rgba(0,0,0,.4);
+    cursor:pointer;
+  }
+  .grid-corner-dot.start{
+    background:#22c55e;
+    width:16px;height:16px;
+    margin:-8px 0 0 -8px;
+    border:3px solid #fff;
+  }
 </style>
 </head>
 
@@ -1087,9 +3099,9 @@
     <span>Search</span>
   </button>
 
-  <button class="tool-btn" id="tool-panels" title="Show or hide a square on every solar panel">
-    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14"/><path d="M15 5v14"/><path d="M3 12h18"/></svg>
-    <span id="panelsLabel">Panels</span>
+  <button class="tool-btn" id="tool-grid" title="Draw a grid: click 4 corners, subdivide into rows × columns">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+    <span>Grid</span>
   </button>
 
   <div class="tb-divider"></div>
@@ -1134,6 +3146,30 @@
     <span>Import</span>
   </button>
   <input type="file" id="importFileInput" accept=".geojson,.json,application/geo+json,application/json" style="display:none;">
+</div>
+
+<!-- ================= GRID CONFIG POPOVER ================= -->
+<div id="gridConfigPopover">
+  <h4>⊞ Draw Panel Grid</h4>
+  <div class="grid-cfg-row">
+    <div class="grid-cfg-field">
+      <label>Rows</label>
+      <input type="number" id="gridRowsInput" value="2" min="1" max="50">
+    </div>
+    <div class="grid-cfg-field">
+      <label>Columns</label>
+      <input type="number" id="gridColsInput" value="19" min="1" max="200">
+    </div>
+  </div>
+  <div class="grid-cfg-label-row">
+    <label>Label (optional)</label>
+    <input type="text" id="gridLabelInput" placeholder="e.g. Zona A, String 1">
+  </div>
+  <div class="grid-cfg-actions">
+    <button id="gridStartDrawBtn">✏️ Start Drawing</button>
+    <button id="gridCancelBtn">Cancel</button>
+  </div>
+  <div class="grid-cfg-status" id="gridStatus">Set rows & columns, then click Start Drawing. Place 4 corners on the map, then click the green start dot to close.</div>
 </div>
 
 <!-- ================= ANNOTATIONS LIST (top-left) ================= -->
@@ -1224,7 +3260,7 @@
 
 <!-- ================= LEGEND ================= -->
 <div id="legend">
-  <div class="legend-title"><span>Temperature</span><span>&deg;C</span></div>
+  <div class="legend-title"><span>Temperature</span><span>°C</span></div>
   <div class="legend-bar" id="legendBar"></div>
   <div class="legend-labels">
     <span id="legendMin"></span>
@@ -1235,7 +3271,7 @@
 <!-- ================= FEATURE NAME / DESCRIPTION EDITOR ================= -->
 <div id="editor">
   <div id="editorMainCol">
-  <button class="editor-close" id="editorClose">&times;</button>
+  <button class="editor-close" id="editorClose">×</button>
 
   <label for="editorName">Name</label>
   <input id="editorName" type="text" placeholder="Untitled">
@@ -1266,7 +3302,7 @@
       <span class="row-col-label">Column</span>
       <input id="editorColumn" type="text" placeholder="e.g. 7">
     </div>
-    <button id="detectRowBtn">📐 Auto-detect row &amp; column from nearest lines</button>
+    <button id="detectRowBtn">📐 Auto-detect row & column from nearest lines</button>
   </div>
 
   <div id="severitySection" style="display:none;">
@@ -1335,7 +3371,7 @@
 <!-- ================= NEAREST-PHOTO MODAL ================= -->
 <div id="photoModalBackdrop">
   <div id="photoModal">
-    <button class="editor-close" id="photoModalClose">&times;</button>
+    <button class="editor-close" id="photoModalClose">×</button>
     <div id="photoModalBody">
       <div class="photo-modal-col">
         <div class="photo-modal-col-label">Thermal flight</div>
@@ -1372,35 +3408,24 @@
 // CUSTOM COLORMAP (black -> purple -> orange -> yellow)
 // ==========================
 
-// Builds a TiTiler-compatible "explicit" colormap: an object whose keys are
-// "value_start,value_end" strings and whose values are [r,g,b,a] arrays.
-// TiTiler colors each pixel by finding which [start,end) bucket its raw
-// value falls into. We interpolate `steps` buckets evenly across
-// [vmin, vmax], and interpolate the color for each bucket across the given
-// hex color stops (piecewise-linear, like a CSS gradient).
 const VMIN = 5;
 const VMAX = 51.9;
 
-// Temperature-based colors: purple below 25°C, orange-to-gold through
-// 35°C, then bright yellow up to the existing maximum. Extra stops soften
-// the purple-to-orange transition, and more buckets reduce visible banding.
 const QGIS_CONTROL_POINTS = [
-  [VMIN,  48,   0, 112],  // deep purple at the low end
-  [15,    88,  20, 145],  // purple
-  [21,   112,  30, 150],  // violet
-  [23,   145,  40, 145],  // lighter purple
-  [25,   185,  65, 100],  // purple-orange blend near the threshold
-  [27,   225,  90,  45],  // warm orange
-  [30,   255, 145,  20],  // orange-yellow
-  [35,   255, 205,  35],  // golden yellow
-  [35.5, 255, 255,   0],  // bright yellow
+  [VMIN,  48,   0, 112],
+  [15,    88,  20, 145],
+  [21,   112,  30, 150],
+  [23,   145,  40, 145],
+  [25,   185,  65, 100],
+  [27,   225,  90,  45],
+  [30,   255, 145,  20],
+  [35,   255, 205,  35],
+  [35.5, 255, 255,   0],
   [VMAX, 255, 255,   0]
 ];
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
-// Piecewise-linear interpolation between QGIS's real-value control points —
-// mirrors exactly what QGIS's own "INTERPOLATED" color ramp does.
 function colorAtValue(points, value) {
   if (value <= points[0][0]) return points[0].slice(1);
   if (value >= points[points.length - 1][0]) return points[points.length - 1].slice(1);
@@ -1434,8 +3459,6 @@ function buildColormap(points, vmin, vmax, steps = 48) {
 const customColormap = buildColormap(QGIS_CONTROL_POINTS, VMIN, VMAX, 48);
 const colormapParam = encodeURIComponent(JSON.stringify(customColormap));
 
-// Legend gradient — reuse the same control points, positioned by their
-// real value's percentage along VMIN-VMAX.
 const legendGradientCss = `linear-gradient(to right, ${QGIS_CONTROL_POINTS.map(function(p) {
   const pct = ((p[0] - VMIN) / (VMAX - VMIN)) * 100;
   const hex = "#" + [p[1], p[2], p[3]].map(function(c) { return c.toString(16).padStart(2, "0"); }).join("");
@@ -1467,9 +3490,6 @@ let contrast = 100;
 thermalLayer.on("postrender", function (evt) {
   const ctx = evt.context;
   if (!ctx || !ctx.canvas || (brightness === 0 && contrast === 100)) return;
-
-  // Re-draw the layer canvas through the selected filter while preserving
-  // transparent pixels around the raster tiles.
   ctx.save();
   ctx.globalCompositeOperation = "source-atop";
   ctx.filter = `brightness(${100 + brightness}%) contrast(${contrast}%)`;
@@ -1487,9 +3507,6 @@ const vectorSource = new ol.source.Vector();
 let currentColor = "#e11d48";
 let rowColOpacity = 1;
 
-// Severity filter state: when a severity is toggled off here, point
-// annotations with that severity are hidden from the map (and dimmed in
-// the annotations list) regardless of their own individual visibility flag.
 let severityFilter = { low: true, medium: true, high: true };
 
 function hexToRgba(hex, alpha) {
@@ -1514,8 +3531,6 @@ function featureStyle(feature) {
   const isGuide = shape === "Row" || shape === "Column";
   const isPoint = feature.getGeometry().getType() === "Point";
   const severity = feature.get("severity");
-  // Points with a severity set are colored entirely by their severity
-  // (green/orange/red) instead of the annotation's own chosen color.
   const severityColor = (isPoint && severity && SEVERITY_COLORS[severity]) ? SEVERITY_COLORS[severity] : null;
   const color = severityColor || feature.get("color") || currentColor;
   const alpha = isGuide ? rowColOpacity : 1;
@@ -1578,13 +3593,40 @@ const measureLayer = new ol.layer.Vector({
 });
 
 
+// ==========================
+// GRID DRAWING LAYER (separate so grids don't mix with annotations)
+// ==========================
+
+const gridSource = new ol.source.Vector();
+
+const gridStyle = function (feature) {
+  const color = feature.get("gridColor") || "#4f46e5";
+  const isOuter = feature.get("gridOuter");
+  return new ol.style.Style({
+    stroke: new ol.style.Stroke({
+      color: color,
+      width: isOuter ? 2.5 : 1
+    }),
+    fill: isOuter
+      ? new ol.style.Fill({ color: hexToRgba(color, 0.04) })
+      : undefined
+  });
+};
+
+const gridLayer = new ol.layer.Vector({
+  source: gridSource,
+  style: gridStyle
+});
+
+
 const map = new ol.Map({
   target: "map",
   layers: [
     new ol.layer.Tile({ source: new ol.source.OSM() }),
     thermalLayer,
     vectorLayer,
-    measureLayer
+    measureLayer,
+    gridLayer
   ],
   view: new ol.View({
     center: ol.proj.fromLonLat([25.497553, 44.203172]),
@@ -1708,8 +3750,6 @@ function openEditor(feature) {
   });
 }
 
-// Fills in the GPS text immediately, then fetches the real pixel value at
-// that point from TiTiler and fills in the temperature once it resolves.
 async function updateCoordsAndTemp(feature) {
   const coord = feature.getGeometry().getCoordinates();
   const lonLat = ol.proj.toLonLat(coord);
@@ -1914,12 +3954,21 @@ map.on("click", (evt) => {
 
   if (photoModeActive) {
     handlePhotoClick(evt.coordinate);
+    return;
+  }
+
+  // Grid drawing: place corners
+  if (gridDrawingActive) {
+    handleGridClick(evt);
+    return;
   }
 });
 
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
-  if (pendingPerpendicular) {
+  if (gridDrawingActive) {
+    cancelGridDrawing();
+  } else if (pendingPerpendicular) {
     cancelAddPerpendicular();
   } else if (measureDraw) {
     measureDraw.abortDrawing();
@@ -1933,7 +3982,7 @@ document.getElementById("addPerpendicularBtn").onclick = () => {
 
 
 // ==========================
-// BULK REPEAT (draw one row/column, auto-generate the rest — straight or oblique)
+// BULK REPEAT
 // ==========================
 
 function metersToMapUnitsAt(coordinate, meters) {
@@ -2084,13 +4133,9 @@ document.getElementById("tool-ruler").onclick = (e) => activateRuler(e.currentTa
 
 
 // ==========================
-// TEMPERATURE PICKER ("See temperature" tool)
+// TEMPERATURE PICKER
 // ==========================
 
-// Clicking the Temp button arms "temperature mode": the next click(s) on
-// the map query the raw pixel value at that lon/lat via TiTiler's /cog/point
-// endpoint and show it in a small popup. Stays active until another tool
-// is picked, so you can click multiple spots in a row.
 let temperatureModeActive = false;
 let tempPopupEl = null;
 let tempPopupOverlay = null;
@@ -2161,29 +4206,10 @@ document.getElementById("tool-temperature").onclick = (e) => activateTemperature
 
 
 // ==========================
-// ZOOM/PAN CONTROLLER (shared by photo modal + editor photo panel)
+// ZOOM/PAN CONTROLLER
 // ==========================
 
-// Wraps an <img> inside a container: wheel to zoom (centered on cursor),
-// drag to pan once zoomed in, double-click to reset. Call .reset() whenever
-// a new image src is assigned so the next photo starts fitted, centered.
-//
-// Unlike a CSS width:100%/object-fit approach, the image is never shrunk by
-// CSS — it keeps its full natural pixel size and ALL scaling (fit-to-view
-// and zoom) happens via the transform. That way zooming in samples the real
-// full-resolution source instead of stretching an already-downscaled raster.
 function createZoomPan(container, img) {
-  // The <img> element is kept at its FULL natural pixel size at all times
-  // (never shrunk via CSS width/height). Both the initial "fit to view" AND
-  // any subsequent zooming are done through the SAME CSS transform scale.
-  // This matters because a two-step approach (shrink the img's CSS box to
-  // the fitted size, then apply an extra transform on top to zoom in) lets
-  // the browser rasterize/cache a low-resolution bitmap at the fitted size
-  // first — zooming in after that just magnifies that already-blurry
-  // bitmap, no matter how high the zoom ceiling is set. Doing it all as one
-  // continuous transform on the natural-size element means the browser
-  // always has the full-resolution source available to sample from at
-  // whatever the current on-screen size ends up being.
   let scale = 1, tx = 0, ty = 0;
   let minScale = 1, maxScale = 1;
   let dragging = false, startX = 0, startY = 0, tx0 = 0, ty0 = 0;
@@ -2193,17 +4219,6 @@ function createZoomPan(container, img) {
     img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
   }
 
-  // Locks the img's CSS box to its natural pixel dimensions (so it's never
-  // pre-downscaled by layout), then figures out the transform scale needed
-  // to fit it in the container — that becomes both the starting scale and
-  // the minimum (can't zoom out further than "fit"). The maximum scale is
-  // set so zooming can reach true native 1:1 physical-pixel resolution on
-  // THIS screen: since the img box is sized in natural-pixel CSS units, and
-  // 1 CSS pixel maps to devicePixelRatio physical pixels, "native detail"
-  // is reached at transform scale = 1/devicePixelRatio (not 1) — so the
-  // ceiling is whichever is larger, fitScale or 1/devicePixelRatio, in case
-  // the image is so small relative to the container that "fit" already
-  // exceeds native size.
   function computeFit() {
     const naturalW = img.naturalWidth;
     const naturalH = img.naturalHeight;
@@ -2231,9 +4246,6 @@ function createZoomPan(container, img) {
     if (img.complete && img.naturalWidth) {
       computeFit();
     } else {
-      // Image hasn't loaded yet — the "load" listener below will call
-      // computeFit() once it has. Avoid a stale/huge unscaled flash in
-      // the meantime.
       scale = 1; tx = 0; ty = 0;
       img.style.transition = "none";
       apply();
@@ -2285,12 +4297,10 @@ function createZoomPan(container, img) {
   return { reset, wasDragged: () => dragMoved };
 }
 
-const PHOTOS_BASE = `${TITILER_BASE}/vulcan/photos`; // https://tiles.helioscan.ro/photos
-const PHOTOS_INDEX_URL = `${TITILER_BASE}/vulcan/photos.json`;       // thermal-flight photos
-const PHOTOS_INDEX_URL_WIDE = `${TITILER_BASE}/vulcan/photos2.json`; // wide-lens-flight photos
+const PHOTOS_BASE = `${TITILER_BASE}/vulcan/photos`;
+const PHOTOS_INDEX_URL = `${TITILER_BASE}/vulcan/photos.json`;
+const PHOTOS_INDEX_URL_WIDE = `${TITILER_BASE}/vulcan/photos2.json`;
 
-// Each index is an array of {batch, file, path, lat, lon}, cached per-URL
-// once loaded so switching tools/reopening the editor doesn't refetch.
 const photoIndexCache = {};
 const photoIndexLoadPromises = {};
 
@@ -2309,9 +4319,6 @@ function loadPhotoIndex(url) {
   return photoIndexLoadPromises[url];
 }
 
-// Loads both indexes in parallel. Either one failing (e.g. photos2.json
-// not uploaded yet) degrades to an empty array for that side rather than
-// breaking the other column.
 function loadBothPhotoIndexes() {
   return Promise.all([
     loadPhotoIndex(PHOTOS_INDEX_URL).catch(() => []),
@@ -2319,7 +4326,6 @@ function loadBothPhotoIndexes() {
   ]).then(([thermalIndex, wideIndex]) => ({ thermalIndex, wideIndex }));
 }
 
-// Haversine distance in meters between two lon/lat points.
 function haversineMeters(lon1, lat1, lon2, lat2) {
   const R = 6371000;
   const toRad = (d) => (d * Math.PI) / 180;
@@ -2345,8 +4351,6 @@ function findNearestPhoto(lon, lat, photoIndex) {
   return { photo: best, distance: bestDist };
 }
 
-// Distance beyond which we flag the match as "not really at this spot" —
-// tune this to your flight's photo spacing/overlap.
 const PHOTO_DISTANCE_WARN_METERS = 15;
 
 let photoModeActive = false;
@@ -2367,9 +4371,6 @@ const editorPhotoWrapWide = document.getElementById("editorPhotoWrapWide");
 const editorPhotoImgWide = document.getElementById("editorPhotoImgWide");
 const editorPhotoZoomPanWide = createZoomPan(editorPhotoWrapWide, editorPhotoImgWide);
 
-// Fills one image/file/distance trio from a {photo, distance} nearest-photo
-// result (or clears it to "No photos indexed" if null). Shared by both the
-// editor panel and the modal, for both the thermal and wide-lens columns.
 function populatePhotoSlot(imgEl, zoomPan, fileEl, distEl, result) {
   if (!result) {
     fileEl.textContent = "No photos indexed";
@@ -2396,10 +4397,6 @@ function populatePhotoSlot(imgEl, zoomPan, fileEl, distEl, result) {
   }
 }
 
-// Populates the editor's embedded photo panel with the nearest thermal-
-// flight AND nearest wide-lens-flight photo to this point feature's
-// coordinates. Reuses the same indexes/lookup used by the standalone
-// "Photo" tool, so both stay in sync automatically.
 let lastEditorPhotoResultThermal = null;
 let lastEditorPhotoResultWide = null;
 
@@ -2435,9 +4432,6 @@ async function updateEditorPhoto(feature) {
   }
 }
 
-// Clicking either small editor thumbnail opens both photos full-size in the
-// existing zoomable modal — no need to re-run the nearest-photo lookup,
-// we already have both results from when the thumbnails were populated.
 editorPhotoWrapThermal.addEventListener("click", function () {
   if (editorPhotoZoomPanThermal.wasDragged()) return;
   openPhotoModal(lastEditorPhotoResultThermal, lastEditorPhotoResultWide);
@@ -2496,7 +4490,7 @@ function activatePhotoTool(btn) {
   clearInteractions();
   closeEditor();
   photoModeActive = true;
-  loadBothPhotoIndexes(); // kick off loading early so the first click doesn't wait
+  loadBothPhotoIndexes();
   showPlacementHint("Click anywhere to see the nearest photos");
   setActiveButton(btn);
 }
@@ -2517,7 +4511,6 @@ document.getElementById("legendMax").textContent = VMAX;
 // WIDE-LENS COMPARISON LAYER (swipe reveal)
 // ==========================
 
-// EDIT THIS once you've uploaded the wide-lens orthomosaic via FTP:
 const WIDE_COG_URL = "/data/vulcan/wide_vulcan.tiff";
 
 const wideTileURL =
@@ -2530,16 +4523,8 @@ const wideLayer = new ol.layer.Tile({
   }),
   opacity: 1
 });
-// Insert directly above the thermal layer (index 1) rather than on top of
-// everything, so annotations/rows/columns/measure overlays stay visible
-// above the swipe comparison instead of being covered by it.
 map.getLayers().insertAt(2, wideLayer);
 
-// Clips wideLayer's rendered canvas to only the region left of the slider
-// handle each frame, so everything right of the handle still shows
-// whatever's underneath (the thermal layer) unobstructed. Uses
-// ol.render.getRenderPixel rather than raw slider-percentage-of-CSS-width
-// math so this stays correct on high-DPI displays too.
 const swipeSlider = document.getElementById("swipeSlider");
 
 wideLayer.on("prerender", function (event) {
@@ -2615,6 +4600,9 @@ function setActiveButton(btn) {
 }
 
 function clearInteractions() {
+  if (gridDrawingActive) {
+    cancelGridDrawing();
+  }
   if (pendingPerpendicular) {
     pendingPerpendicular = null;
     map.getTargetElement().style.cursor = "";
@@ -2722,8 +4710,258 @@ document.getElementById("tool-circle").onclick = (e) => activateDraw("Circle", e
 document.getElementById("tool-row").onclick = (e) => activateRowTool(e.currentTarget);
 document.getElementById("tool-column").onclick = (e) => activateColumnTool(e.currentTarget);
 
-// start in select mode
 activateSelect(document.getElementById("tool-select"));
+
+
+// ==========================
+// GRID DRAWING TOOL
+// ==========================
+
+let gridDrawingActive = false;
+let gridCornerCoords = [];       // [{x, y}, ...] in map projection (EPSG:3857)
+let gridCornerOverlays = [];     // OL Overlay elements for the corner dots
+let gridPreviewFeature = null;   // polyline preview while placing corners
+let gridIdCounter = 0;
+
+const gridConfigPopover = document.getElementById("gridConfigPopover");
+const gridStatusEl = document.getElementById("gridStatus");
+
+document.getElementById("tool-grid").onclick = function (e) {
+  clearInteractions();
+  closeEditor();
+  setActiveButton(e.currentTarget);
+  gridConfigPopover.classList.add("open");
+  gridStatusEl.textContent = "Set rows & columns, then click Start Drawing. Place 4 corners on the map, then click the green start dot to close.";
+};
+
+document.getElementById("gridCancelBtn").onclick = function () {
+  cancelGridDrawing();
+  gridConfigPopover.classList.remove("open");
+  activateSelect(document.getElementById("tool-select"));
+};
+
+document.getElementById("gridStartDrawBtn").onclick = function () {
+  const rows = parseInt(document.getElementById("gridRowsInput").value) || 2;
+  const cols = parseInt(document.getElementById("gridColsInput").value) || 19;
+  if (rows < 1 || cols < 1) {
+    gridStatusEl.textContent = "Rows and columns must be ≥ 1";
+    return;
+  }
+  gridDrawingActive = true;
+  gridCornerCoords = [];
+  clearGridCornerOverlays();
+  removeGridPreview();
+  map.getTargetElement().style.cursor = "crosshair";
+  showPlacementHint("Click to place corner 1 of 4");
+  gridStatusEl.textContent = "Placing corners... (0/4)";
+};
+
+function cancelGridDrawing() {
+  gridDrawingActive = false;
+  gridCornerCoords = [];
+  clearGridCornerOverlays();
+  removeGridPreview();
+  map.getTargetElement().style.cursor = "";
+  hidePlacementHint();
+  gridStatusEl.textContent = "Cancelled.";
+}
+
+function clearGridCornerOverlays() {
+  gridCornerOverlays.forEach((ov) => map.removeOverlay(ov));
+  gridCornerOverlays = [];
+}
+
+function removeGridPreview() {
+  if (gridPreviewFeature) {
+    gridSource.removeFeature(gridPreviewFeature);
+    gridPreviewFeature = null;
+  }
+}
+
+function addGridCornerDot(coord, isStart) {
+  const el = document.createElement("div");
+  el.className = "grid-corner-dot" + (isStart ? " start" : "");
+
+  const ov = new ol.Overlay({
+    element: el,
+    position: coord,
+    positioning: "center-center",
+    stopEvent: true
+  });
+  map.addOverlay(ov);
+  gridCornerOverlays.push(ov);
+
+  // If we now have 4 corners, make the start dot clickable to close
+  if (isStart && gridCornerCoords.length === 0) {
+    // Will be wired up after 4th corner is placed
+  }
+
+  return { el, ov };
+}
+
+function handleGridClick(evt) {
+  if (!gridDrawingActive) return;
+
+  const coord = evt.coordinate; // [x, y] in EPSG:3857
+
+  // If already have 4 corners, check if clicking near the start to close
+  if (gridCornerCoords.length === 4) {
+    const startPx = map.getPixelFromCoordinate(gridCornerCoords[0]);
+    const clickPx = map.getPixelFromCoordinate(coord);
+    const dist = Math.hypot(startPx[0] - clickPx[0], startPx[1] - clickPx[1]);
+    if (dist < 20) {
+      finishGridDrawing();
+    } else {
+      showPlacementHint("Click the green start dot to close the shape");
+    }
+    return;
+  }
+
+  gridCornerCoords.push(coord);
+  const isStart = gridCornerCoords.length === 1;
+  const { el } = addGridCornerDot(coord, isStart);
+
+  // Update preview polyline
+  updateGridPreview();
+
+  if (gridCornerCoords.length < 4) {
+    showPlacementHint(`Click to place corner ${gridCornerCoords.length + 1} of 4`);
+    gridStatusEl.textContent = `Placing corners... (${gridCornerCoords.length}/4)`;
+  } else {
+    showPlacementHint("Click the green start dot to close the shape");
+    gridStatusEl.textContent = "4 corners placed — click the green dot to finish";
+
+    // Make start dot clickable
+    const startEl = gridCornerOverlays[0].getElement();
+    startEl.addEventListener("click", function handler(e) {
+      e.stopPropagation();
+      startEl.removeEventListener("click", handler);
+      finishGridDrawing();
+    });
+  }
+}
+
+function updateGridPreview() {
+  removeGridPreview();
+  if (gridCornerCoords.length < 2) return;
+  const coords = gridCornerCoords.slice();
+  if (coords.length === 4) coords.push(coords[0]); // close the shape
+  gridPreviewFeature = new ol.Feature({
+    geometry: new ol.geom.LineString(coords)
+  });
+  gridPreviewFeature.set("gridColor", currentColor);
+  gridSource.addFeature(gridPreviewFeature);
+}
+
+// Also update preview while mouse moves (show the "next" segment)
+map.on("pointermove", function (evt) {
+  if (!gridDrawingActive || gridCornerCoords.length === 0 || gridCornerCoords.length >= 4) return;
+  removeGridPreview();
+  const coords = gridCornerCoords.slice();
+  coords.push(evt.coordinate);
+  gridPreviewFeature = new ol.Feature({
+    geometry: new ol.geom.LineString(coords)
+  });
+  gridPreviewFeature.set("gridColor", currentColor);
+  gridSource.addFeature(gridPreviewFeature);
+});
+
+function finishGridDrawing() {
+  gridDrawingActive = false;
+  map.getTargetElement().style.cursor = "";
+  hidePlacementHint();
+  removeGridPreview();
+  clearGridCornerOverlays();
+
+  const rows = parseInt(document.getElementById("gridRowsInput").value) || 2;
+  const cols = parseInt(document.getElementById("gridColsInput").value) || 19;
+  const label = document.getElementById("gridLabelInput").value.trim() || ("Grid " + (++gridIdCounter));
+
+  // Order the 4 corners into: top-left, top-right, bottom-right, bottom-left
+  const ordered = orderCorners(gridCornerCoords);
+  buildSubdividedGrid(ordered, rows, cols, label);
+
+  gridStatusEl.textContent = `✅ "${label}" — ${rows}×${cols} = ${rows * cols} cells created`;
+  gridConfigPopover.classList.remove("open");
+  activateSelect(document.getElementById("tool-select"));
+}
+
+/**
+ * Orders 4 map-projection coordinates into:
+ * [0] top-left, [1] top-right, [2] bottom-right, [3] bottom-left
+ *
+ * In EPSG:3857 Y increases upward, so "top" = higher Y values.
+ */
+function orderCorners(pts) {
+  // Sort by Y descending to get top two vs bottom two
+  const byY = pts.slice().sort((a, b) => b[1] - a[1]);
+  const top = byY.slice(0, 2).sort((a, b) => a[0] - b[0]);  // left first
+  const bot = byY.slice(2, 4).sort((a, b) => a[0] - b[0]);  // left first
+  return [
+    top[0],  // top-left
+    top[1],  // top-right
+    bot[1],  // bottom-right
+    bot[0]   // bottom-left
+  ];
+}
+
+/**
+ * Bilinear interpolation across a quadrilateral.
+ *
+ * c0=TL  c1=TR
+ * c3=BL  c2=BR
+ *
+ * u goes left→right [0,1], v goes top→bottom [0,1]
+ */
+function bilinearInterp(c0, c1, c2, c3, u, v) {
+  const x = (1 - u) * (1 - v) * c0[0]
+          + u * (1 - v) * c1[0]
+          + u * v * c2[0]
+          + (1 - u) * v * c3[0];
+  const y = (1 - u) * (1 - v) * c0[1]
+          + u * (1 - v) * c1[1]
+          + u * v * c2[1]
+          + (1 - u) * v * c3[1];
+  return [x, y];
+}
+
+function buildSubdividedGrid(corners, rows, cols, label) {
+  const [c0, c1, c2, c3] = corners; // TL, TR, BR, BL
+
+  // Outer boundary polygon
+  const outerFeature = new ol.Feature({
+    geometry: new ol.geom.Polygon([[c0, c1, c2, c3, c0]])
+  });
+  outerFeature.set("gridColor", currentColor);
+  outerFeature.set("gridOuter", true);
+  outerFeature.set("gridLabel", label);
+  gridSource.addFeature(outerFeature);
+
+  // Subdivided cells
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const u0 = c / cols;
+      const u1 = (c + 1) / cols;
+      const v0 = r / rows;
+      const v1 = (r + 1) / rows;
+
+      const tl = bilinearInterp(c0, c1, c2, c3, u0, v0);
+      const tr = bilinearInterp(c0, c1, c2, c3, u1, v0);
+      const br = bilinearInterp(c0, c1, c2, c3, u1, v1);
+      const bl = bilinearInterp(c0, c1, c2, c3, u0, v1);
+
+      const cellFeature = new ol.Feature({
+        geometry: new ol.geom.Polygon([[tl, tr, br, bl, tl]])
+      });
+      cellFeature.set("gridColor", currentColor);
+      cellFeature.set("gridLabel", label);
+      cellFeature.set("gridRow", r + 1);
+      cellFeature.set("gridCol", c + 1);
+      cellFeature.set("gridPanelNum", r * cols + c + 1);
+      gridSource.addFeature(cellFeature);
+    }
+  }
+}
 
 
 // ==========================
@@ -2741,7 +4979,7 @@ colorInput.oninput = function () {
 
 
 // ==========================
-// UNDO / REDO (add + delete of whole features)
+// UNDO / REDO
 // ==========================
 
 let undoStack = [];
@@ -2795,6 +5033,7 @@ document.getElementById("tool-redo").onclick = () => {
 
 document.getElementById("tool-clear").onclick = function () {
   vectorSource.clear();
+  gridSource.clear();
   clearMeasurements();
   undoStack = [];
   redoStack = [];
@@ -2815,7 +5054,7 @@ document.getElementById("tool-export").onclick = function () {
 };
 
 // ==========================
-// EXPORT ZIP: nearest thermal photo + GPS + temperature for every point
+// EXPORT ZIP
 // ==========================
 document.getElementById("tool-export-zip").onclick = async function () {
   const btn = this;
@@ -2836,7 +5075,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
 
   btn.dataset.busy = "1";
   const setLabel = (t) => { label.textContent = t; };
-  // Runs fn over items with limited concurrency.
   const pool = async (items, limit, fn) => {
     let i = 0;
     const worker = async () => { while (i < items.length) { const k = i++; await fn(items[k], k); } };
@@ -2847,7 +5085,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
     setLabel("Indexing...");
     const thermalIndex = await loadPhotoIndex(PHOTOS_INDEX_URL);
 
-    // 1) Per annotation: GPS, nearest photo, temperature
     const rows = points.map((f) => {
       const [lon, lat] = ol.proj.toLonLat(f.getGeometry().getCoordinates());
       const near = findNearestPhoto(lon, lat, thermalIndex);
@@ -2866,7 +5103,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
       setLabel("Temp " + (++done) + "/" + rows.length);
     });
 
-    // 2) Unique photos -> zip names
     const zip = new JSZip();
     const photoFolder = zip.folder("photos");
     const zipNameByPath = {};
@@ -2896,7 +5132,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
       setLabel("Photos " + (++done) + "/" + unique.length);
     });
 
-    // 3) The .txt report: one line per annotation
     const sevName = { low: "Low", medium: "Medium", high: "High" };
     const lines = rows.map((r) => {
       const p = r.near && r.near.photo;
@@ -2909,7 +5144,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
     });
     zip.file("annotations.txt", lines.join("\r\n"));
 
-    // 4) Build & download
     setLabel("Zipping...");
     const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }, (m) => setLabel("Zip " + Math.round(m.percent) + "%"));
     const a = document.createElement("a");
@@ -2929,7 +5163,7 @@ document.getElementById("tool-export-zip").onclick = async function () {
 };
 
 // ==========================
-// SEARCH: find an annotation by coords / temp / photo filename / row / severity
+// SEARCH
 // ==========================
 (function () {
   const btn = document.getElementById("tool-search");
@@ -2937,8 +5171,8 @@ document.getElementById("tool-export-zip").onclick = async function () {
   const input = document.getElementById("searchInput");
   const statusEl = document.getElementById("searchStatus");
   const resultsEl = document.getElementById("searchResults");
-  const tempCache = {};     // "lon,lat" -> number | null
-  const photoCache = {};    // "lon,lat" -> filename
+  const tempCache = {};
+  const photoCache = {};
   let thermalIdx = null;
   let tempsLoading = false;
   let selIndex = -1;
@@ -2960,7 +5194,7 @@ document.getElementById("tool-export-zip").onclick = async function () {
         return {
           f, lon, lat, k,
           file: photoCache[k] || "",
-          temp: tempCache[k],            // undefined = not loaded yet
+          temp: tempCache[k],
           name: f.get("name") || "",
           row: f.get("row") || "",
           col: f.get("column") || "",
@@ -3010,7 +5244,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
     };
   }
 
-  // "row 6" / "column 2" (or "col 2") are exact filters; the rest are free tokens.
   function parseQuery(q) {
     let rest = q.toLowerCase();
     let row = null, col = null;
@@ -3042,7 +5275,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
         score += s;
       }
       let dist = null;
-      // A pasted "lat, lon" pair also matches by proximity (within 2 m).
       if (!ok && pq.row === null && pq.col === null && nums && nums.length >= 2) {
         const d = haversineMeters(it.lon, it.lat, parseFloat(nums[1]), parseFloat(nums[0]));
         if (d <= 2) { ok = true; dist = d; score = 10 - d; }
@@ -3053,12 +5285,12 @@ document.getElementById("tool-export-zip").onclick = async function () {
     return out;
   }
 
-  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """ }[c]));
   function hl(text, tokens) {
     let h = esc(text);
     for (const t of tokens) {
       if (!t) continue;
-      const re = new RegExp("(" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
+      const re = new RegExp("(" + t.replace(/[.*+?^${}()|[$$$$/g, "\\$&") + ")", "ig");
       h = h.replace(re, "<mark>$1</mark>");
     }
     return h;
@@ -3085,8 +5317,8 @@ document.getElementById("tool-export-zip").onclick = async function () {
         "</span>" + (sevKey ? '<span class="sr-sev ' + esc(sevKey) + '">' + esc(sevName[sevKey] || sevKey) + "</span>" : "") + "</div>" +
         '<div class="sr-sub">' + hl(it.file || "no photo", tokens) + "</div>" +
         '<div class="sr-sub">' + hl(it.lat.toFixed(6) + ", " + it.lon.toFixed(6), tokens) +
-        " &nbsp;|&nbsp; " + (typeof it.temp === "number" ? hl(it.temp.toFixed(1), tokens) + " &deg;C" : (it.temp === undefined ? "temp loading..." : "temp n/a")) +
-        (r.dist !== null ? " &nbsp;|&nbsp; " + r.dist.toFixed(1) + " m from typed coords" : "") + "</div>";
+        "  |  " + (typeof it.temp === "number" ? hl(it.temp.toFixed(1), tokens) + " °C" : (it.temp === undefined ? "temp loading..." : "temp n/a")) +
+        (r.dist !== null ? "  |  " + r.dist.toFixed(1) + " m from typed coords" : "") + "</div>";
       el.onclick = () => goTo(it);
       el.onmouseenter = () => setSel(i);
       resultsEl.appendChild(el);
@@ -3101,50 +5333,49 @@ document.getElementById("tool-export-zip").onclick = async function () {
     els[selIndex].scrollIntoView({ block: "nearest" });
   }
 
- function runSearch() {
-  const q = input.value.trim();
-  const pq = parseQuery(q);
-  const tokens = pq.tokens;
+  function runSearch() {
+    const q = input.value.trim();
+    const pq = parseQuery(q);
+    const tokens = pq.tokens;
 
-  if (!tokens.length && pq.row === null && pq.col === null) {
-    resultsEl.innerHTML = "";
-    currentResults = [];
-    const total = getItems().length;
-    if (!tempsLoading) {
-      statusEl.textContent = total + " point annotations. Type coords, temperature, filename, row or severity.";
+    if (!tokens.length && pq.row === null && pq.col === null) {
+      resultsEl.innerHTML = "";
+      currentResults = [];
+      const total = getItems().length;
+      if (!tempsLoading) {
+        statusEl.textContent = total + " point annotations. Type coords, temperature, filename, row or severity.";
+      }
+      return;
     }
-    return;
+
+    const res = search(q);
+    render(res, tokens);
+
+    const photos = (pq.row === null && pq.col === null && thermalIdx)
+      ? thermalIdx.filter((p) => tokens.every((t) => p.file.toLowerCase().includes(t))).slice(0, 50)
+      : [];
+
+    photos.forEach((p) => {
+      const el = document.createElement("div");
+      el.className = "sr-item";
+      el.innerHTML =
+        '<div class="sr-top"><span>\ud83d\udcf7 Photo</span></div>' +
+        '<div class="sr-sub">' + hl(p.file, tokens) + "</div>" +
+        '<div class="sr-sub">' + p.lat.toFixed(6) + ", " + p.lon.toFixed(6) + "</div>";
+      el.onclick = async () => {
+        map.getView().animate({ center: ol.proj.fromLonLat([p.lon, p.lat]), zoom: 20, duration: 350 });
+        const wideIndex = await loadPhotoIndex(PHOTOS_INDEX_URL_WIDE).catch(() => []);
+        openPhotoModal({ photo: p, distance: 0 }, findNearestPhoto(p.lon, p.lat, wideIndex));
+      };
+      resultsEl.appendChild(el);
+    });
+
+    const loadingNote = tempsLoading ? " - temperatures still loading" : "";
+    statusEl.textContent = (res.length + photos.length)
+      ? res.length + " annotation(s), " + photos.length + " photo(s)" + loadingNote
+      : "No match" + (tempsLoading ? " yet" : "") + loadingNote;
   }
 
-  // Annotations (matches name, row/col, severity, coords, temp, nearest photo filename)
-  const res = search(q);
-  render(res, tokens);
-
-  // Photo filenames straight from the thermal index
-  const photos = (pq.row === null && pq.col === null && thermalIdx)
-    ? thermalIdx.filter((p) => tokens.every((t) => p.file.toLowerCase().includes(t))).slice(0, 50)
-    : [];
-
-  photos.forEach((p) => {
-    const el = document.createElement("div");
-    el.className = "sr-item";
-    el.innerHTML =
-      '<div class="sr-top"><span>\ud83d\udcf7 Photo</span></div>' +
-      '<div class="sr-sub">' + hl(p.file, tokens) + "</div>" +
-      '<div class="sr-sub">' + p.lat.toFixed(6) + ", " + p.lon.toFixed(6) + "</div>";
-    el.onclick = async () => {
-      map.getView().animate({ center: ol.proj.fromLonLat([p.lon, p.lat]), zoom: 20, duration: 350 });
-      const wideIndex = await loadPhotoIndex(PHOTOS_INDEX_URL_WIDE).catch(() => []);
-      openPhotoModal({ photo: p, distance: 0 }, findNearestPhoto(p.lon, p.lat, wideIndex));
-    };
-    resultsEl.appendChild(el);
-  });
-
-  const loadingNote = tempsLoading ? " - temperatures still loading" : "";
-  statusEl.textContent = (res.length + photos.length)
-    ? res.length + " annotation(s), " + photos.length + " photo(s)" + loadingNote
-    : "No match" + (tempsLoading ? " yet" : "") + loadingNote;
-}
   async function openPanel() {
     panel.classList.add("open");
     btn.classList.add("active");
@@ -3170,67 +5401,6 @@ document.getElementById("tool-export-zip").onclick = async function () {
   });
 })();
 
-// ==========================
-// PANELS: a square on every individual solar panel (toggle)
-// ==========================
-// panels.geojson is produced on the server by detect_panels.py from the
-// thermal orthomosaic. One polygon per panel, with tmean / tmax properties.
-const PANELS_URL = `${TITILER_BASE}/vulcan/panels.geojson`;
-
-const panelsSource = new ol.source.Vector();
-const panelStyle = [
-  new ol.style.Style({ stroke: new ol.style.Stroke({ color: "rgba(0,0,0,0.55)", width: 2.4 }) }),
-  new ol.style.Style({ stroke: new ol.style.Stroke({ color: "rgba(255,255,255,0.95)", width: 1.1 }) })
-];
-const panelsLayer = new ol.layer.Vector({
-  source: panelsSource,
-  style: panelStyle,
-  visible: false,
-  minZoom: 16,               // too many tiny squares when zoomed far out
-  updateWhileInteracting: false,
-  updateWhileAnimating: false
-});
-// above the thermal / wide-lens imagery, below annotations and measurements
-map.getLayers().insertAt(3, panelsLayer);
-
-(function () {
-  const btn = document.getElementById("tool-panels");
-  const label = document.getElementById("panelsLabel");
-  let loaded = false, loading = false;
-
-  async function loadPanels() {
-    if (loaded || loading) return loaded;
-    loading = true;
-    label.textContent = "Loading...";
-    try {
-      const res = await fetch(PANELS_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const feats = new ol.format.GeoJSON().readFeatures(await res.text(), { featureProjection: "EPSG:3857" });
-      panelsSource.addFeatures(feats);
-      loaded = true;
-    } catch (err) {
-      alert("Couldn't load the panel squares (" + err.message + ").\nThe file panels.geojson must exist on the server at /var/www/tiles/vulcan/.");
-    }
-    loading = false;
-    label.textContent = "Panels";
-    return loaded;
-  }
-
-  btn.onclick = async function () {
-    if (panelsLayer.getVisible()) {
-      panelsLayer.setVisible(false);
-      btn.classList.remove("active");
-      return;
-    }
-    if (!(await loadPanels())) return;
-    panelsLayer.setVisible(true);
-    btn.classList.add("active");
-    if ((map.getView().getZoom() || 0) < 16) {
-      const ext = panelsSource.getExtent();
-      if (ext && isFinite(ext[0])) map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 19, duration: 400 });
-    }
-  };
-})();
 
 document.getElementById("tool-import").onclick = function () {
   document.getElementById("importFileInput").click();
@@ -3244,11 +5414,6 @@ document.getElementById("importFileInput").onchange = function (e) {
   reader.onload = function (evt) {
     try {
       const format = new ol.format.GeoJSON();
-      // The exported file's coordinates are plain lon/lat (GeoJSON's default
-      // dataProjection, EPSG:4326) since that's what writeFeatures produced
-      // when we told it the *source* features were in EPSG:3857. Reading
-      // back with featureProjection: "EPSG:3857" reprojects those lon/lat
-      // coordinates into the map's own projection, undoing that conversion.
       const features = format.readFeatures(evt.target.result, {
         featureProjection: "EPSG:3857"
       });
@@ -3258,14 +5423,8 @@ document.getElementById("importFileInput").onchange = function (e) {
         return;
       }
 
-      // Feature properties (name, description, shape, color, row, column,
-      // hidden) were written directly into GeoJSON "properties" on export,
-      // so ol.format.GeoJSON restores them automatically on read — no
-      // manual remapping needed here.
       vectorSource.addFeatures(features);
 
-      // Zoom/pan to fit whatever was just imported, so it's immediately visible
-      // even if it's outside the current view.
       const extent = ol.extent.createEmpty();
       features.forEach((f) => ol.extent.extend(extent, f.getGeometry().getExtent()));
       if (ol.extent.getWidth(extent) > 0 || ol.extent.getHeight(extent) > 0) {
@@ -3274,7 +5433,6 @@ document.getElementById("importFileInput").onchange = function (e) {
     } catch (err) {
       alert("Couldn't parse that file as GeoJSON: " + err.message);
     } finally {
-      // reset so selecting the same file again still fires 'onchange'
       e.target.value = "";
     }
   };
@@ -3312,8 +5470,6 @@ const GROUP_LABEL = {
 };
 const collapsedGroups = {};
 
-// Higher rank sorts first when "Sort by severity" is enabled. Features
-// without a severity (or non-point shapes) sort last, in their original order.
 const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
 let sortBySeverity = false;
 
@@ -3380,7 +5536,6 @@ function buildAnnItem(feature) {
   return item;
 }
 
-// Counts point features by severity, for the severity legend badges.
 function computeSeverityCounts() {
   const counts = { low: 0, medium: 0, high: 0 };
   vectorSource.getFeatures().forEach((f) => {
@@ -3471,14 +5626,10 @@ document.getElementById("sortBySeverityToggle").onchange = function () {
   renderAnnotationsList();
 };
 
-// Severity legend: collapse/expand the button row.
 document.getElementById("severityLegendHeader").onclick = function () {
   document.getElementById("severityLegend").classList.toggle("collapsed");
 };
 
-// Severity legend: each button is an on/off filter. Turning a severity off
-// hides those point annotations from the map and dims them in the list —
-// e.g. turn off Medium and High to see only Low-severity points.
 document.querySelectorAll(".sev-filter-btn").forEach((btn) => {
   btn.onclick = () => {
     const sev = btn.dataset.severity;
@@ -3550,12 +5701,9 @@ document.getElementById("fullscreenBtn").onclick = function () {
 
 
 // ==========================
-// DEFAULT ANNOTATIONS (auto-loaded once, for THIS deployment only)
+// DEFAULT ANNOTATIONS
 // ==========================
 
-// Point this at wherever you've uploaded this site's exported .geojson on
-// the server. Leave as "" to disable auto-loading — e.g. if you copy this
-// index.html as a blank template for a different site.
 const DEFAULT_ANNOTATIONS_URL = "https://tiles.helioscan.ro/vulcan/annotations/vulcan.geojson";
 
 if (DEFAULT_ANNOTATIONS_URL) {
@@ -3567,8 +5715,6 @@ if (DEFAULT_ANNOTATIONS_URL) {
     .then((text) => {
       const format = new ol.format.GeoJSON();
       const features = format.readFeatures(text, { featureProjection: "EPSG:3857" });
-      // Load silently into the undo/redo history so a stray Ctrl+Z can't
-      // wipe out the whole preloaded set.
       suppressHistory = true;
       vectorSource.addFeatures(features);
       suppressHistory = false;
@@ -3582,14 +5728,10 @@ if (DEFAULT_ANNOTATIONS_URL) {
 // THERMAL ORTHOMOSAIC SWITCH + AUTO-ZOOM
 // ==========================
 
-// Set to true once thermal_vulcan.tiff has been converted and is on the
-// server (/data/vulcan/thermal_vulcan.tiff). Until then the thermal layer
-// is hidden (no failing tile requests) and only the wide-lens mosaic shows.
 const HAS_THERMAL = true;
 
 if (!HAS_THERMAL) thermalLayer.setVisible(false);
 
-// Zoom to the orthomosaic automatically (no hard-coded coordinates).
 fetch(`${TITILER_BASE}/cog/WebMercatorQuad/tilejson.json?url=${encodeURIComponent(HAS_THERMAL ? COG_URL : WIDE_COG_URL)}`)
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error("tilejson " + r.status))))
   .then((tj) => {
