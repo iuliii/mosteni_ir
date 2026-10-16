@@ -1087,6 +1087,11 @@
     <span>Search</span>
   </button>
 
+  <button class="tool-btn" id="tool-panels" title="Show or hide a square on every solar panel">
+    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14"/><path d="M15 5v14"/><path d="M3 12h18"/></svg>
+    <span id="panelsLabel">Panels</span>
+  </button>
+
   <div class="tb-divider"></div>
 
   <button class="tool-btn" id="colorBtn" title="Color">
@@ -3163,6 +3168,68 @@ document.getElementById("tool-export-zip").onclick = async function () {
     else if (e.key === "ArrowUp") { e.preventDefault(); setSel(selIndex - 1); }
     else if (e.key === "Enter" && currentResults[selIndex]) { goTo(currentResults[selIndex].it); }
   });
+})();
+
+// ==========================
+// PANELS: a square on every individual solar panel (toggle)
+// ==========================
+// panels.geojson is produced on the server by detect_panels.py from the
+// thermal orthomosaic. One polygon per panel, with tmean / tmax properties.
+const PANELS_URL = `${TITILER_BASE}/vulcan/panels.geojson`;
+
+const panelsSource = new ol.source.Vector();
+const panelStyle = [
+  new ol.style.Style({ stroke: new ol.style.Stroke({ color: "rgba(0,0,0,0.55)", width: 2.4 }) }),
+  new ol.style.Style({ stroke: new ol.style.Stroke({ color: "rgba(255,255,255,0.95)", width: 1.1 }) })
+];
+const panelsLayer = new ol.layer.Vector({
+  source: panelsSource,
+  style: panelStyle,
+  visible: false,
+  minZoom: 16,               // too many tiny squares when zoomed far out
+  updateWhileInteracting: false,
+  updateWhileAnimating: false
+});
+// above the thermal / wide-lens imagery, below annotations and measurements
+map.getLayers().insertAt(3, panelsLayer);
+
+(function () {
+  const btn = document.getElementById("tool-panels");
+  const label = document.getElementById("panelsLabel");
+  let loaded = false, loading = false;
+
+  async function loadPanels() {
+    if (loaded || loading) return loaded;
+    loading = true;
+    label.textContent = "Loading...";
+    try {
+      const res = await fetch(PANELS_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const feats = new ol.format.GeoJSON().readFeatures(await res.text(), { featureProjection: "EPSG:3857" });
+      panelsSource.addFeatures(feats);
+      loaded = true;
+    } catch (err) {
+      alert("Couldn't load the panel squares (" + err.message + ").\nThe file panels.geojson must exist on the server at /var/www/tiles/vulcan/.");
+    }
+    loading = false;
+    label.textContent = "Panels";
+    return loaded;
+  }
+
+  btn.onclick = async function () {
+    if (panelsLayer.getVisible()) {
+      panelsLayer.setVisible(false);
+      btn.classList.remove("active");
+      return;
+    }
+    if (!(await loadPanels())) return;
+    panelsLayer.setVisible(true);
+    btn.classList.add("active");
+    if ((map.getView().getZoom() || 0) < 16) {
+      const ext = panelsSource.getExtent();
+      if (ext && isFinite(ext[0])) map.getView().fit(ext, { padding: [80, 80, 80, 80], maxZoom: 19, duration: 400 });
+    }
+  };
 })();
 
 document.getElementById("tool-import").onclick = function () {
